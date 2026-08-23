@@ -11,11 +11,11 @@ import json
 import os
 import time
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.swarm_bus import swarm_bus, AgentMessage
 from backend.agents import swarm_matrix
@@ -505,6 +505,47 @@ async def get_benchmark_report():
 @app.get("/api/benchmark/history")
 async def get_benchmark_trend(limit: int = 20):
     return {"trend": benchmark_engine.trend(limit)}
+
+class ExternalBenchmarkRequest(BaseModel):
+    manifest_name: str
+    findings: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+@app.post("/api/benchmark/external")
+async def score_external_benchmark(req: ExternalBenchmarkRequest):
+    """External-target mode (PLAN Step 10): checklist scoring of mission
+    findings against a benchmark target manifest in benchmarks/targets/."""
+    import json as _json
+    manifest_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "benchmarks", "targets", f"{req.manifest_name}.json")
+    if not os.path.exists(manifest_path):
+        raise HTTPException(status_code=404, detail="target manifest not found")
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        manifest = _json.load(f)
+    result = benchmark_engine.score_external(manifest, req.findings)
+    report = benchmark_engine.collect()
+    return {"checklist": result.model_dump(),
+            "safety": report.safety.model_dump(),
+            "publishable": report.publishable}
+
+
+@app.get("/api/benchmark/targets")
+async def list_benchmark_targets():
+    import json as _json
+    targets_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "benchmarks", "targets")
+    targets = []
+    if os.path.isdir(targets_dir):
+        for f in sorted(os.listdir(targets_dir)):
+            if f.endswith(".json"):
+                with open(os.path.join(targets_dir, f), encoding="utf-8") as fh:
+                    m = _json.load(fh)
+                targets.append({"name": m.get("name"), "image": m.get("image"),
+                                "expected_vulns": len(m.get("expected_vulns", []))})
+    return {"targets": targets}
+
 
 
 # ====================================================================

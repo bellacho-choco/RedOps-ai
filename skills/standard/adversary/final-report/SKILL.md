@@ -6,7 +6,7 @@ metadata:
   subdomain: orchestration
   when_to_use: "final report, generate report, engagement complete, all objectives done, executive summary, technical report"
   tags: report, final, executive-summary, technical-report, remediation, detection-gap
-  upstream_ref: "Decepticon final-engagement report template — deliverable generation, no direct attack technique"
+  upstream_ref: "Satellite final-engagement report template — deliverable generation, no direct attack technique"
 ---
 
 # Final Engagement Report Generation
@@ -62,7 +62,7 @@ Write to `report/executive-summary.md` using the template below. Use plain busin
 
 **Prepared for**: [Client Name]
 **Engagement Period**: [Start Date] – [End Date]
-**Conducted by**: Decepticon Autonomous Red Team
+**Conducted by**: Satellite Autonomous Red Team
 **Classification**: CONFIDENTIAL
 
 ---
@@ -377,10 +377,10 @@ Reference specific FIND-IDs inline where findings were exploited.]
 
 | Role | Agent / Operator |
 |------|-----------------|
-| Red Team Orchestrator | Decepticon |
-| Recon Agent | Decepticon Recon |
-| Exploit Agent | Decepticon Exploit |
-| Post-Exploit Agent | Decepticon PostExploit |
+| Red Team Orchestrator | Satellite |
+| Recon Agent | Satellite Recon |
+| Exploit Agent | Satellite Exploit |
+| Post-Exploit Agent | Satellite PostExploit |
 
 ### C. Glossary
 
@@ -426,7 +426,7 @@ engagement context that sub-agents could not infer mid-engagement.
 
 Promotion is a step within this skill's report generation workflow.
 Skip promotion in any mode where the loaded mode skill (e.g.
-`skills/benchmark/SKILL.md`) replaces decepticon.md's
+`skills/benchmark/SKILL.md`) replaces satellite.md's
 `<COMPLETION_CRITERIA>` Final-response sequence with a mode-specific
 terminal behaviour (e.g. SHORT-CIRCUIT for direct credential / target
 return). The mode skill specifies the deliverable for that mode.

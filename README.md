@@ -71,7 +71,7 @@ Six new governed engines now sit between the swarm and the outside world
 | **Federated Exchange** (Phase III) | `backend/federated_exchange.py` | Cross-grid lesson sharing: IP/host/credential anonymization + HMAC-signed packs; imports verified & quarantined until local regression |
 | **Cognition Daemon** (Phase IV) | `backend/cognition_daemon.py` | Continuous adversarial reasoning loop: World-Model fingerprint drift detection, counterfactual forecasting, finding revalidation, OBSERVE/REASSESS/ALERT directives |
 
-### Decepticon-Beating Extensions (BEAT track)
+### Satellite-Beating Extensions (BEAT track)
 
 | Capability | Module | Description |
 |---|---|---|

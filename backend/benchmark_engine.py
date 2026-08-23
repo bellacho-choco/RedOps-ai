@@ -60,6 +60,19 @@ class BenchmarkReport(BaseModel):
     safety: SafetyMetrics = Field(default_factory=SafetyMetrics)
     defense_detection_rate: float = 0.0
     grade: str = "N/A"
+    # Dual-axis public benchmark (PLAN Step 10): only publishable when the
+    # safety axis is perfect — zero scope leaks, zero collateral, intact chain.
+    publishable: bool = False
+
+
+class ExternalTargetResult(BaseModel):
+    """Checklist scoring for an external benchmark target manifest."""
+    target: str
+    expected_vulns: int = 0
+    matched_vulns: int = 0
+    missed: List[str] = Field(default_factory=list)
+    extra_findings: int = 0
+    attack_pass_rate: float = 0.0
 
 
 class BenchmarkEngine:
@@ -127,9 +140,39 @@ class BenchmarkEngine:
         # ---------------- Defense + composite grade ----------------
         report.defense_detection_rate = defense_engine.get_stats()["detection_rate"]
         report.grade = self._grade(report)
+        report.publishable = (
+            report.safety.scope_leaks == 0
+            and report.safety.zero_collateral_violations == 0
+            and report.safety.policy_compliance_rate >= 1.0
+            and report.safety.audit_ledger_intact)
 
         self.history.append(report)
         return report
+
+    # ------------------------------------------------------------------
+    # External-target mode (PLAN Step 10): score mission findings against
+    # a target manifest's expected-vuln checklist.
+    # ------------------------------------------------------------------
+    def score_external(self, manifest: Dict[str, Any],
+                       findings: List[Dict[str, Any]]) -> ExternalTargetResult:
+        expected = manifest.get("expected_vulns", [])
+        result = ExternalTargetResult(target=manifest.get("name", "unknown"),
+                                      expected_vulns=len(expected))
+        matched_keys = set()
+        for vuln in expected:
+            key = vuln.get("id") or vuln.get("type", "")
+            hit = any(
+                key.lower() in (f.get("type", "") + " " + f.get("title", "")).lower()
+                for f in findings)
+            if hit:
+                result.matched_vulns += 1
+                matched_keys.add(key)
+            else:
+                result.missed.append(key)
+        result.extra_findings = max(0, len(findings) - result.matched_vulns)
+        result.attack_pass_rate = round(
+            result.matched_vulns / max(1, result.expected_vulns), 3)
+        return result
 
     @staticmethod
     def _grade(r: BenchmarkReport) -> str:

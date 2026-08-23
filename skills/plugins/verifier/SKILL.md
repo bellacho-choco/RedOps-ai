@@ -4,7 +4,7 @@ description: Stage 3 triage and verification playbook. Crafts minimal PoCs, runs
 metadata:
   subdomain: orchestration
   when_to_use: "verifier stage 3 triage verification poc zero-false-positive zfp finding cvss pipeline"
-  upstream_ref: "Decepticon vulnresearch pipeline — stage 3 verifier role"
+  upstream_ref: "Satellite vulnresearch pipeline — stage 3 verifier role"
 ---
 
 # Verifier Skill
@@ -67,7 +67,7 @@ curl -sS "http://target/avatar?file=../../../../etc/passwd"
 ### Insecure deserialization
 
 Write a tmp sentinel file from the gadget payload, success pattern =
-sentinel file exists after request (use `ls /tmp/decepticon-sentinel`).
+sentinel file exists after request (use `ls /tmp/satellite-sentinel`).
 
 ## CVSS vector cheat-sheet
 

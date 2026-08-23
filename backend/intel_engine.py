@@ -1,7 +1,7 @@
 """
 ====================================================================
 PROJECT REDOPS-OMEGA - LIVE THREAT RESEARCH ENGINE (BEAT #2, FLAGSHIP)
-Decepticon lists 'connectors' on the roadmap. We ship a governed live
+The competitor lists 'connectors' on the roadmap. We ship a governed live
 research connector (Tavily HTTP) with TTL cache + graceful degrade.
 
 Fixes the champion gap '17B untrained': the agent now reasons over the

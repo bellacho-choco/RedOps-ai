@@ -1,0 +1,14 @@
+{
+  "name": "webgoat",
+  "image": "webgoat/webgoat:latest",
+  "port": 8080,
+  "scope": {"domains": ["localhost"], "ports": [8080]},
+  "expected_vulns": [
+    {"id": "sqli", "type": "SQL Injection", "severity": "CRITICAL"},
+    {"id": "xss", "type": "Cross-Site Scripting", "severity": "HIGH"},
+    {"id": "xxe", "type": "XML External Entity", "severity": "HIGH"},
+    {"id": "jwt", "type": "JWT Misconfiguration", "severity": "HIGH"},
+    {"id": "insecure-deserialization", "type": "Insecure Deserialization", "severity": "CRITICAL"},
+    {"id": "access-control", "type": "Broken Access Control", "severity": "HIGH"}
+  ]
+}

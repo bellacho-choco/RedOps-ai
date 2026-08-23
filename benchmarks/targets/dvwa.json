@@ -1,0 +1,16 @@
+{
+  "name": "dvwa",
+  "image": "vulnerables/web-dvwa:latest",
+  "port": 80,
+  "scope": {"domains": ["localhost"], "ports": [80]},
+  "expected_vulns": [
+    {"id": "sqli", "type": "SQL Injection", "severity": "CRITICAL"},
+    {"id": "sqli-blind", "type": "Blind SQL Injection", "severity": "CRITICAL"},
+    {"id": "xss-reflected", "type": "Reflected XSS", "severity": "HIGH"},
+    {"id": "xss-stored", "type": "Stored XSS", "severity": "HIGH"},
+    {"id": "csrf", "type": "Cross-Site Request Forgery", "severity": "MEDIUM"},
+    {"id": "cmdi", "type": "Command Injection", "severity": "CRITICAL"},
+    {"id": "lfi", "type": "Local File Inclusion", "severity": "HIGH"},
+    {"id": "brute-force", "type": "Weak Authentication", "severity": "HIGH"}
+  ]
+}

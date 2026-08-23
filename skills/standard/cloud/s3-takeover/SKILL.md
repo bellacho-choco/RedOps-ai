@@ -52,7 +52,7 @@ aws s3 ls "s3://$BUCKET/" --no-sign-request 2>&1
 # "NoSuchBucket" / "The specified bucket does not exist" = dangling
 ```
 
-Decepticon helper:
+Satellite helper:
 ```
 s3_takeover_check("<subdomain>")
 ```

@@ -203,9 +203,9 @@ sandbox_manager = SandboxManager()
 
 
 # ====================================================================
-# REAL CONTAINER EXECUTION BACKEND (Step 1: PARITY with Decepticon)
+# REAL CONTAINER EXECUTION BACKEND (Step 1: PARITY with competing platforms)
 # Ephemeral Kali containers + tmux-style persistent sessions via the
-# Docker SDK. Difference vs Decepticon: nothing reaches this executor
+# Docker SDK. Difference vs competitors: nothing reaches this executor
 # without passing the Tool Gateway's HMAC/scope/audit chain.
 # ====================================================================
 class SandboxExecResult(BaseModel):
