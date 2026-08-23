@@ -50,6 +50,8 @@ from backend.api_mapper import api_mapper, Endpoint
 from backend.response_analyzer import response_analyzer, Signal
 from backend.fuzz_engine import fuzz_engine
 from backend.exploit_validator import exploit_validator
+from backend.hunt_engine import hunt_engine
+from backend.payload_corpus import payload_corpus
 
 
 def _register_gateway_tools():
@@ -552,6 +554,35 @@ async def probe_summary():
             "recent_requests": request_forge.request_log[-20:],
             "validation": exploit_validator.summary(),
             "endpoints_mapped": {k: len(v) for k, v in api_mapper.maps.items()}}
+
+
+class HuntRequest(BaseModel):
+    base_url: str
+    identity: str = "unauth"
+    max_endpoints: int = 25
+    max_requests_per_endpoint: int = 8
+    total_request_ceiling: int = 150
+
+
+@app.post("/api/hunt/run")
+async def hunt_run(req: HuntRequest):
+    report = await hunt_engine.hunt(
+        req.base_url, identity=req.identity,
+        max_endpoints=req.max_endpoints,
+        max_requests_per_endpoint=req.max_requests_per_endpoint,
+        total_request_ceiling=req.total_request_ceiling)
+    return report.__dict__
+
+
+@app.get("/api/hunt/latest")
+async def hunt_latest():
+    report = hunt_engine.latest()
+    return report.__dict__ if report else {"status": "no hunts yet"}
+
+
+@app.get("/api/corpus/coverage")
+async def corpus_coverage():
+    return payload_corpus.coverage_report()
 
 
 # ====================================================================
