@@ -73,7 +73,14 @@ class OmegaRunner:
     # ---------------- Stage 1: governed mission ----------------------
     async def _stage_mission(self, report: OmegaRunReport) -> None:
         t0 = time.time()
-        await swarm_matrix.overlord.execute_mission(report.target)
+        result = await swarm_matrix.overlord.execute_mission(report.target)
+        if isinstance(result, dict) and result.get("status") == "DENIED":
+            report.mission_status = "DENIED"
+            report.stages.append(PipelineStage(
+                stage="governed_mission", status="FAILED",
+                elapsed_ms=round((time.time() - t0) * 1000, 2),
+                detail={"status": "DENIED", "reason": result.get("reason")}))
+            return
         mission = mission_engine.get_active()
         if mission:
             report.mission_id = mission.manifest.mission_id

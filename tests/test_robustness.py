@@ -5,6 +5,7 @@ import pytest
 
 from backend.swarm_bus import AgentMessage
 from backend.llm_provider import llm_provider
+from backend.agents import OverlordPrimeAgent
 
 
 class TestMalformedIPC:
@@ -81,3 +82,32 @@ class TestLLMFallback:
             provider.api_key = None
             provider.provider = "heuristic"
         assert "FALLBACK" in out or len(out) > 0
+
+
+class TestAutoAuthorizationGate:
+    """Free-text/auto missions must not self-authorize external targets."""
+
+    def test_unauthorized_external_target_denied(self, monkeypatch):
+        monkeypatch.delenv("REDOPS_AUTHORIZED_DOMAINS", raising=False)
+        ok, reason = OverlordPrimeAgent._check_auto_authorization(
+            "https://evil-corp.example.com")
+        assert ok is False and "REDOPS_AUTHORIZED_DOMAINS" in reason
+
+    def test_authorized_domain_allowed(self, monkeypatch):
+        monkeypatch.setenv("REDOPS_AUTHORIZED_DOMAINS",
+                           "opensea.io, wallet.opensea.io")
+        ok, _ = OverlordPrimeAgent._check_auto_authorization("opensea.io")
+        assert ok is True
+
+    def test_local_targets_always_allowed(self, monkeypatch):
+        monkeypatch.delenv("REDOPS_AUTHORIZED_DOMAINS", raising=False)
+        for t in ("127.0.0.1", "localhost", "192.168.1.10", "10.0.0.5"):
+            assert OverlordPrimeAgent._check_auto_authorization(t)[0] is True
+
+    def test_mission_denied_for_unauthorized_target(self, monkeypatch):
+        monkeypatch.delenv("REDOPS_AUTHORIZED_DOMAINS", raising=False)
+        agent = OverlordPrimeAgent()
+        result = asyncio.run(agent.execute_mission("https://unauth-target.example.com"))
+        assert result["status"] == "DENIED"
+        assert agent.status == "IDLE"
+
