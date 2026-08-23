@@ -224,7 +224,7 @@ class SandboxExecResult(BaseModel):
 # Prompt-detection heuristics for interactive session flows.
 _PROMPT_HINTS = [
     ("shell", re.compile(r"(^|\n)[^\n]*[$#]\s*$")),
-    ("msfconsole", re.compile(r"msf\d*\s*[^(]*>\s*$")),
+    ("msfconsole", re.compile(r"msf\d+.*?>\s*$", re.S)),
     ("sql", re.compile(r"(mysql|postgres|sqlite3?)>\s*$", re.I)),
     ("python", re.compile(r">>>\s*$")),
     ("confirm", re.compile(r"\[(y/n|yes/no)\]\s*$", re.I)),

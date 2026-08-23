@@ -71,6 +71,23 @@ Six new governed engines now sit between the swarm and the outside world
 | **Federated Exchange** (Phase III) | `backend/federated_exchange.py` | Cross-grid lesson sharing: IP/host/credential anonymization + HMAC-signed packs; imports verified & quarantined until local regression |
 | **Cognition Daemon** (Phase IV) | `backend/cognition_daemon.py` | Continuous adversarial reasoning loop: World-Model fingerprint drift detection, counterfactual forecasting, finding revalidation, OBSERVE/REASSESS/ALERT directives |
 
+### Decepticon-Beating Extensions (BEAT track)
+
+| Capability | Module | Description |
+|---|---|---|
+| **Offensive Vaccine Loop** (flagship) | `backend/vaccine_engine.py` | Closed loop: finding → rule synthesis → guided mutation replay → IMMUNIZED/BLIND_SPOT verdict → patch draft + regression-gated lesson |
+| **Live Threat Research** (flagship) | `backend/intel_engine.py` | Tavily HTTP connector w/ TTL cache; degrades gracefully to NO_KEY |
+| **Hybrid World Model** | `backend/cypher_engine.py` | Write-through JSONL journal + replay restore + optional NEO4J_URI write-behind replica |
+| **Real Container Sandbox** | `backend/sandbox_engine.py` | DockerExecutor: ephemeral Kali runs + tmux-style sessions, prompt detection, cap_drop ALL |
+| **Sonic Speed Layer** | `backend/parallel_dispatch.py` | Bounded parallel READY-goal fan-out with isolated LaneContext (fresh-context isolation) |
+| **Batch Recon + Caching** | `backend/live_scanner.py` | Per-host recon streams + Cymru-style TTL cache |
+| **Signed Engagement Package** | `backend/mission_engine.py` | RoE/ConOps/OPPLAN + MITRE mapping, HMAC-sealed |
+
+**Decepticon-beat APIs**:
+`/api/vaccine/run|report|status/{id}`, `/api/intel/research|cache`,
+`/api/sandbox/session/open|input|close`, `/api/mission/package|package/verify`,
+`/api/gdt/parallel_dispatch`, `/api/recon/batch`.
+
 **OMEGA REST APIs** (server `3.0.0-OMEGA`):
 `/api/mission/launch|state|abort`, `/api/gateway/token|execute|audit`,
 `/api/policy/evaluate|approvals|approve|reject`, `/api/attack-paths`,
