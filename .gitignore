@@ -38,3 +38,9 @@ ENV/
 .DS_Store
 Thumbs.db
 .redops_memory/
+.agents_tmp/
+
+# Agent runtime artifacts (untracked)
+reports/
+benchmarks/traces/
+skills/staging/

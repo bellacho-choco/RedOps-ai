@@ -73,6 +73,7 @@ def show_help():
     table.add_row("report", "Display the latest mission debrief and mitigation report")
     table.add_row("llm status", "Check active LLM provider, model, and API connection status")
     table.add_row("llm config <p> <key> [m]", "Configure live LLM (gemini, openai, claude, custom)")
+    table.add_row("omega [target]", "Run the full OMEGA pipeline (flagship one-command assessment)")
     table.add_row("skills [search_term]", "Search and list from 316+ indexed security playbooks")
     table.add_row("skill-read <name>", "Read full markdown playbook of a security skill")
     table.add_row("status", "Show live status and latest logs of all 6 hero agents")
@@ -318,6 +319,27 @@ async def handle_command(cmd_str: str):
     elif action == "tui":
         duration = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 20
         await run_live_tui(duration)
+
+    elif action == "omega":
+        target = parts[1] if len(parts) > 1 else "127.0.0.1"
+        from backend.omega_runner import omega_runner
+        console.print(f"[bold magenta]⚡ OMEGA PIPELINE STARTING[/bold magenta] target=[cyan]{target}[/cyan]")
+        report = await omega_runner.run(target)
+        table = Table(title=f"[bold red]OMEGA RUN {report.run_id}[/bold red]", box=box.ROUNDED)
+        table.add_column("Stage", style="bold cyan", width=26)
+        table.add_column("Status", style="bold", width=10)
+        table.add_column("ms", style="yellow", width=10)
+        for s in report.stages:
+            color = {"OK": "green", "WARN": "yellow", "FAILED": "red"}.get(s.status, "white")
+            table.add_row(s.stage, f"[{color}]{s.status}[/{color}]", str(s.elapsed_ms))
+        console.print(table)
+        cert = report.scorecard.get("trust_certificate", {})
+        console.print(f"[bold cyan]🎯 Mission:[/bold cyan] {report.mission_status} | "
+                      f"[bold cyan]Witness:[/bold cyan] {report.witness_valid} | "
+                      f"[bold cyan]GSI:[/bold cyan] {report.scorecard.get('gsi', {}).get('grade')} | "
+                      f"[bold cyan]Trust Cert:[/bold cyan] [green]{cert.get('valid')}[/green]")
+        if report.report_path:
+            console.print(f"[dim]📄 Report: {report.report_path}[/dim]")
 
     elif action == "skills":
         query = parts[1] if len(parts) > 1 else ""

@@ -1,0 +1,24 @@
+{
+  "generated_at": 1787496587.4432845,
+  "cypher_bfs": {
+    "p50_us": 177.22,
+    "p99_us": 269.63,
+    "iterations": 1000
+  },
+  "swarm_bus_ipc": {
+    "p50_us": 4.25,
+    "p99_us": 14.32,
+    "p50_ms": 0.0043,
+    "iterations": 1000
+  },
+  "skills": {
+    "indexed_skills": 317
+  },
+  "cython_entropy": {
+    "cython_available": true,
+    "accelerated": false,
+    "per_call_us": 11.97,
+    "pure_python_us": 10.22,
+    "speedup": 0.85
+  }
+}
