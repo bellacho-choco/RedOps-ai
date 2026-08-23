@@ -54,7 +54,7 @@ curl -X POST localhost:12000/api/gdt/parallel_dispatch
 
 ```bash
 uvicorn backend.server:app --port 12000 &
-python benchmarks/decepticon_satellite.py --base-url http://localhost:12000 --target lab.example
+python benchmarks/redops_satellite.py --base-url http://localhost:12000 --target lab.example
 ```
 
 ## 7. Safety contract

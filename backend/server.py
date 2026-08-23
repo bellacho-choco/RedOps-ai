@@ -40,6 +40,9 @@ from backend.cognition_daemon import cognition_daemon
 from backend.vaccine_engine import vaccine_engine
 from backend.intel_engine import intel_engine
 from backend.parallel_dispatch import parallel_dispatcher
+from backend.plugin_market import plugin_market, PluginBundle
+from backend.gsi_engine import gsi_engine
+from backend.deployment_wizard import deployment_wizard
 
 
 def _register_gateway_tools():
@@ -756,6 +759,39 @@ async def gdt_parallel_dispatch():
     return {"dispatched": [l.model_dump() for l in lanes],
             "frontier_done": mission_engine.get_active().gdt.to_dict()
             if mission_engine.get_active() else None}
+
+
+# ====================================================================
+# NEXT-PHASE SATELLITES: PLUGIN MARKETPLACE, GSI SCORING, DEPLOYMENT WIZARD
+# ====================================================================
+@app.get("/api/plugins")
+async def plugin_index():
+    return plugin_market.get_stats()
+
+
+@app.post("/api/plugins/publish")
+async def plugin_publish(bundle: PluginBundle):
+    return plugin_market.publish(bundle)
+
+
+@app.post("/api/plugins/install/{name}")
+async def plugin_install(name: str):
+    return plugin_market.install(name)
+
+
+@app.get("/api/gsi/score")
+async def gsi_score():
+    return gsi_engine.score().model_dump()
+
+
+@app.get("/api/gsi/trend")
+async def gsi_trend():
+    return gsi_engine.trend()
+
+
+@app.get("/api/wizard/preflight")
+async def wizard_preflight():
+    return deployment_wizard.run_preflight().model_dump()
 
 
 # ====================================================================
