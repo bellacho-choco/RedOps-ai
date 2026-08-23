@@ -6,6 +6,7 @@ WebSocket Multiplexing, Real-time 6-Agent Terminal Streams & REST APIs
 """
 
 import asyncio
+import base64
 import json
 import os
 import time
@@ -27,6 +28,8 @@ from backend.sast_analyzer import sast_auditor
 from backend.attack_path_engine import attack_path_engine, counterfactual_simulator
 from backend.evidence_engine import evidence_engine
 from backend.strategy_memory import strategy_memory
+from backend.defense_engine import defense_engine, ai_vs_ai_campaign, DetectionRule
+from backend.benchmark_engine import benchmark_engine
 
 
 def _register_gateway_tools():
@@ -386,6 +389,64 @@ async def search_lessons(q: str = "", limit: int = 10):
     if q:
         return {"lessons": strategy_memory.search_lessons(q, limit)}
     return {"approved": strategy_memory.approved_strategies()}
+
+
+# ====================================================================
+# OMEGA: AI-VS-AI RED TEAMING (DEFENSE ENGINE)
+# ====================================================================
+class InspectRequest(BaseModel):
+    payload: str
+    encode_base64: bool = False
+
+
+class CampaignRequest(BaseModel):
+    rounds: int = 10
+
+
+@app.get("/api/defense/rules")
+async def get_defense_rules():
+    return {"rules": [r.model_dump() for r in defense_engine.rules.values()],
+            "stats": defense_engine.get_stats()}
+
+
+@app.post("/api/defense/rules")
+async def add_defense_rule(rule: DetectionRule):
+    defense_engine.add_rule(rule)
+    return {"status": "ADDED", "rule_id": rule.rule_id,
+            "rules_loaded": len(defense_engine.rules)}
+
+
+@app.post("/api/defense/inspect")
+async def inspect_payload(req: InspectRequest):
+    data = req.payload
+    if req.encode_base64:
+        try:
+            data = base64.b64decode(data).decode("utf-8", errors="ignore")
+        except Exception:
+            pass
+    return defense_engine.inspect(data).model_dump()
+
+
+@app.post("/api/simulate/ai-vs-ai")
+async def run_ai_vs_ai_campaign(req: CampaignRequest):
+    report = ai_vs_ai_campaign.run(rounds=req.rounds)
+    strategy_memory.push_session_event(
+        "CHRONO-DEBRIEF",
+        f"AI-vs-AI campaign {report.campaign_id}: detection_rate={report.detection_rate}")
+    return report.model_dump()
+
+
+# ====================================================================
+# OMEGA: BENCHMARKING FRAMEWORK
+# ====================================================================
+@app.get("/api/benchmark/report")
+async def get_benchmark_report():
+    return benchmark_engine.collect().model_dump()
+
+
+@app.get("/api/benchmark/history")
+async def get_benchmark_trend(limit: int = 20):
+    return {"trend": benchmark_engine.trend(limit)}
 
 
 # ====================================================================

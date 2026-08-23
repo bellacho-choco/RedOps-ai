@@ -61,16 +61,19 @@ Six new governed engines now sit between the swarm and the outside world
 | **Attack-Path Engine** | `backend/attack_path_engine.py` | Kill-chain enumeration + Path Scoring (Likelihood × Exploitability × Privilege Gain × Criticality × Blast Radius) + Counterfactual IF→THEN simulator |
 | **Evidence & Validation** | `backend/evidence_engine.py` | SHA-256 evidence tokens, confidence scoring, false-positive downgrade, auto repro scripts |
 | **Strategy Memory** | `backend/strategy_memory.py` | 3-tier memory: session deque, campaign KV, regression-gated long-term lessons |
+| **AI-vs-AI Defense** | `backend/defense_engine.py` | Blue-team sigma-style ruleset + Shannon-entropy anomaly inspection; red-vs-blue simulation campaigns with mutation escalation, blind-spot flagging & remediation synthesis |
+| **Benchmarking** | `backend/benchmark_engine.py` | Continuous evaluation: attack / accuracy / safety metric families + composite S–D grade + trend history |
 
 **OMEGA REST APIs** (server `3.0.0-OMEGA`):
 `/api/mission/launch|state|abort`, `/api/gateway/token|execute|audit`,
 `/api/policy/evaluate|approvals|approve|reject`, `/api/attack-paths`,
 `/api/simulate/counterfactual`, `/api/evidence/finding|attach|contradict|state`,
-`/api/memory/stats|outcome|lessons`
+`/api/memory/stats|outcome|lessons`, `/api/defense/rules|inspect`,
+`/api/simulate/ai-vs-ai`, `/api/benchmark/report|history`
 
 **Engine tests:**
 ```bash
-python -m pytest tests/test_omega_engines.py -v   # 13 integration tests
+python -m pytest tests/ -v   # 21 integration tests (Phase I + Phase 3)
 ```
 
 ---

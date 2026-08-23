@@ -33,6 +33,7 @@ class AuditRecord(BaseModel):
     reasons: List[str] = Field(default_factory=list)
     approval_id: Optional[str] = None
     result_digest: Optional[str] = None
+    elapsed_ms: float = 0.0
     prev_hash: str = ""
     record_hash: str = ""
 
@@ -192,7 +193,7 @@ class ToolGateway:
             "target": action.target, "resolved_ip": resolved_ip,
             "decision": status, "risk": verdict.risk.value,
             "reasons": verdict.reasons, "approval_id": approval_id,
-            "result_digest": digest,
+            "result_digest": digest, "elapsed_ms": elapsed_ms,
         })
         return {
             "status": status,
