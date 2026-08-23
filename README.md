@@ -48,6 +48,33 @@
 
 ---
 
+## Ω REDOPS-OMEGA Layer (Phase I Implemented)
+
+Six new governed engines now sit between the swarm and the outside world
+(see `REDOPS_OMEGA_BLUEPRINT.md` for the full specification):
+
+| Engine | File | Capability |
+| :--- | :--- | :--- |
+| **Mission & Goal System** | `backend/mission_engine.py` | Mission Manifests, Goal Dependency Trees (DAG), cycle detection, 3-strike circuit breaker |
+| **Policy & Authorization** | `backend/policy_engine.py` | Hazardous payload classification, MITRE high-impact gates, HMAC capability tokens, human approval tickets |
+| **Tool Gateway** | `backend/tool_gateway.py` | Post-DNS scope enforcement, RoE QPS/hour limits, hash-chained tamper-evident audit ledger |
+| **Attack-Path Engine** | `backend/attack_path_engine.py` | Kill-chain enumeration + Path Scoring (Likelihood × Exploitability × Privilege Gain × Criticality × Blast Radius) + Counterfactual IF→THEN simulator |
+| **Evidence & Validation** | `backend/evidence_engine.py` | SHA-256 evidence tokens, confidence scoring, false-positive downgrade, auto repro scripts |
+| **Strategy Memory** | `backend/strategy_memory.py` | 3-tier memory: session deque, campaign KV, regression-gated long-term lessons |
+
+**OMEGA REST APIs** (server `3.0.0-OMEGA`):
+`/api/mission/launch|state|abort`, `/api/gateway/token|execute|audit`,
+`/api/policy/evaluate|approvals|approve|reject`, `/api/attack-paths`,
+`/api/simulate/counterfactual`, `/api/evidence/finding|attach|contradict|state`,
+`/api/memory/stats|outcome|lessons`
+
+**Engine tests:**
+```bash
+python -m pytest tests/test_omega_engines.py -v   # 13 integration tests
+```
+
+---
+
 ## 🐳 Quick Start with Docker
 
 ```bash
@@ -73,7 +100,7 @@ docker compose run --rm redops-cli
 ```bash
 git clone https://github.com/bellacho-choco/RedOps-ai.git
 cd RedOps-ai
-pip install fastapi uvicorn websockets pydantic rich prompt_toolkit httpx
+pip install fastapi uvicorn websockets pydantic rich prompt_toolkit httpx dnspython
 ```
 
 ### Running Modes
