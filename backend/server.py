@@ -194,6 +194,49 @@ async def start_swarm_operation(req: MissionStartRequest):
     }
 
 
+# ---- OMEGA Pipeline Runner (flagship, Phase 4) ---------------------
+class OmegaRunRequest(BaseModel):
+    target_scope: str = "127.0.0.1"
+    export_report: bool = True
+
+
+@app.post("/api/omega/run")
+async def omega_pipeline_run(req: OmegaRunRequest):
+    """One-command Omega Pipeline: preflight -> governed mission ->
+    environment model -> attack paths -> witness -> claims -> scorecard."""
+    from backend.omega_runner import omega_runner
+    report = await omega_runner.run(req.target_scope, req.export_report)
+    return report.model_dump()
+
+
+# ---- Trust certificate + skill auto-synthesis (Phase 4) ------------
+class TrustCertificateRequest(BaseModel):
+    subject: str
+    claims: Dict[str, Any]
+    evidence_refs: List[str] = Field(default_factory=list)
+
+
+@app.post("/api/trust/certificate")
+async def issue_certificate(req: TrustCertificateRequest):
+    from backend.synthesis_engine import issue_trust_certificate
+    cert = issue_trust_certificate(req.subject, req.claims, req.evidence_refs)
+    return {**cert.model_dump(), "valid": cert.verify()}
+
+
+@app.post("/api/synthesis/skill")
+async def synthesize_skill():
+    """Controlled self-improvement: stage a SKILL.md draft from
+    regression-tested strategy memory (never auto-promoted)."""
+    from backend.synthesis_engine import synthesis_engine
+    return synthesis_engine.synthesize().model_dump()
+
+
+@app.get("/api/synthesis/staged")
+async def list_staged_skills():
+    from backend.synthesis_engine import synthesis_engine
+    return {"staged": synthesis_engine.list_staged()}
+
+
 @app.post("/api/agent/command")
 async def execute_agent_command(req: AgentCommandRequest):
     agent_name = req.agent.upper()
@@ -510,12 +553,15 @@ async def get_benchmark_trend(limit: int = 20):
 class ExternalBenchmarkRequest(BaseModel):
     manifest_name: str
     findings: List[Dict[str, Any]] = Field(default_factory=list)
+    seed: Optional[int] = None
+    run_health_check: bool = False
 
 
 @app.post("/api/benchmark/external")
 async def score_external_benchmark(req: ExternalBenchmarkRequest):
-    """External-target mode (PLAN Step 10): checklist scoring of mission
-    findings against a benchmark target manifest in benchmarks/targets/."""
+    """External-target mode: checklist scoring of mission findings against a
+    benchmark target manifest. Optional rot-detection health pre-check and
+    seeded deterministic replay; per-finding JSONL trace exported."""
     import json as _json
     manifest_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -524,7 +570,13 @@ async def score_external_benchmark(req: ExternalBenchmarkRequest):
         raise HTTPException(status_code=404, detail="target manifest not found")
     with open(manifest_path, "r", encoding="utf-8") as f:
         manifest = _json.load(f)
-    result = benchmark_engine.score_external(manifest, req.findings)
+    result = benchmark_engine.score_external(manifest, req.findings,
+                                             seed=req.seed)
+    if req.run_health_check:
+        health = benchmark_engine.health_check(manifest)
+        result.health = health["health"]
+        result.health_detail = health["health_detail"]
+        result.scored = health["scored"]
     report = benchmark_engine.collect()
     return {"checklist": result.model_dump(),
             "safety": report.safety.model_dump(),
@@ -617,6 +669,20 @@ async def mcp_skill_content(skill_name: str):
         return {"protocol": "MCP", "status": "NOT_FOUND", "skill": skill_name}
     return {"protocol": "MCP", "resource": f"redops://skills/{skill_name}",
             "content": content}
+
+
+# ---- Skills audit & MITRE index (Step 12 hardening) -----------------
+@app.get("/api/skills/audit")
+async def skills_audit():
+    return skills_engine.audit()
+
+
+@app.get("/api/skills/mitre/{technique_id}")
+async def skills_mitre_lookup(technique_id: str):
+    results = skills_engine.lookup_mitre(technique_id)
+    if not results:
+        raise HTTPException(status_code=404, detail="no skills mapped to technique")
+    return {"technique": technique_id.upper(), "skills": results}
 
 
 @app.post("/mcp/sandbox/validate")

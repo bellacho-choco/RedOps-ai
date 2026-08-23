@@ -6,6 +6,9 @@ Safety Metrics aggregated from live engine telemetry. Blueprint Section 13.
 ====================================================================
 """
 
+import json
+import os
+import socket
 import statistics
 import time
 import uuid
@@ -19,6 +22,15 @@ from backend.evidence_engine import evidence_engine
 from backend.strategy_memory import strategy_memory
 from backend.defense_engine import defense_engine
 from backend.policy_engine import PolicyDecision
+
+
+def _default_probe(host: str, port: int, timeout: float):
+    """TCP connect probe for build-health pre-checks."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True, f"{host}:{port} reachable"
+    except OSError as exc:
+        return False, f"{host}:{port} unreachable ({exc})"
 
 
 class AttackMetrics(BaseModel):
@@ -73,6 +85,13 @@ class ExternalTargetResult(BaseModel):
     missed: List[str] = Field(default_factory=list)
     extra_findings: int = 0
     attack_pass_rate: float = 0.0
+    # Rot-detection (Step 13): unhealthy targets are excluded from scoring
+    # and transparently flagged instead of silently inflating/deflating.
+    health: str = "NOT_CHECKED"          # HEALTHY / UNHEALTHY / NOT_CHECKED
+    health_detail: str = ""
+    scored: bool = True                  # False when excluded due to rot
+    seed: Optional[int] = None           # replay seed for deterministic runs
+    trace_path: Optional[str] = None     # exported per-finding JSONL trace
 
 
 class BenchmarkEngine:
@@ -154,16 +173,25 @@ class BenchmarkEngine:
     # a target manifest's expected-vuln checklist.
     # ------------------------------------------------------------------
     def score_external(self, manifest: Dict[str, Any],
-                       findings: List[Dict[str, Any]]) -> ExternalTargetResult:
+                       findings: List[Dict[str, Any]],
+                       seed: Optional[int] = None,
+                       export_trace: bool = True) -> ExternalTargetResult:
         expected = manifest.get("expected_vulns", [])
         result = ExternalTargetResult(target=manifest.get("name", "unknown"),
-                                      expected_vulns=len(expected))
+                                      expected_vulns=len(expected), seed=seed)
+        # Deterministic ordering: seeded runs always evaluate identically
+        if seed is not None:
+            findings = sorted(findings, key=lambda f: json.dumps(
+                f, sort_keys=True))
         matched_keys = set()
         for vuln in expected:
             key = vuln.get("id") or vuln.get("type", "")
+            # Match on both the checklist id and the vuln type so either
+            # label in a finding counts as a hit.
+            candidates = [k for k in (vuln.get("id"), vuln.get("type")) if k]
             hit = any(
-                key.lower() in (f.get("type", "") + " " + f.get("title", "")).lower()
-                for f in findings)
+                cand.lower() in (f.get("type", "") + " " + f.get("title", "")).lower()
+                for cand in candidates for f in findings)
             if hit:
                 result.matched_vulns += 1
                 matched_keys.add(key)
@@ -172,7 +200,44 @@ class BenchmarkEngine:
         result.extra_findings = max(0, len(findings) - result.matched_vulns)
         result.attack_pass_rate = round(
             result.matched_vulns / max(1, result.expected_vulns), 3)
+        if export_trace:
+            result.trace_path = self._export_trace(result, findings)
         return result
+
+    @staticmethod
+    def _export_trace(result: ExternalTargetResult,
+                      findings: List[Dict[str, Any]]) -> str:
+        """Per-finding JSONL trace for reproducible, auditable scoring."""
+        traces_dir = os.path.join(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))), "benchmarks", "traces")
+        os.makedirs(traces_dir, exist_ok=True)
+        path = os.path.join(traces_dir, f"{result.target}-{int(time.time())}.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"event": "run", "target": result.target,
+                                "seed": result.seed}) + "\n")
+            for finding in findings:
+                f.write(json.dumps({"event": "finding", **finding}) + "\n")
+            f.write(json.dumps({"event": "score",
+                                "matched": result.matched_vulns,
+                                "missed": result.missed,
+                                "pass_rate": result.attack_pass_rate}) + "\n")
+        return path
+
+    @staticmethod
+    def health_check(manifest: Dict[str, Any],
+                     probe: Optional[callable] = None,
+                     timeout: float = 3.0) -> Dict[str, Any]:
+        """Build-health pre-check: rotten targets are excluded from scoring
+        instead of silently skewing results (public-suite rot problem)."""
+        probe = probe or _default_probe
+        host = (manifest.get("scope", {}).get("domains") or ["localhost"])[0]
+        port = (manifest.get("scope", {}).get("ports") or [manifest.get("port", 80)])[0]
+        try:
+            ok, detail = probe(host, port, timeout)
+        except Exception as exc:
+            ok, detail = False, f"probe error: {exc}"
+        return {"health": "HEALTHY" if ok else "UNHEALTHY",
+                "health_detail": detail, "scored": bool(ok)}
 
     @staticmethod
     def _grade(r: BenchmarkReport) -> str:

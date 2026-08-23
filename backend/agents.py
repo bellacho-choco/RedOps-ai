@@ -6,6 +6,7 @@ Real Autonomous Security Swarm with Real Socket Probes, SAST & LLM Reasoning
 """
 
 import asyncio
+import os
 import time
 import uuid
 from typing import Dict, List, Any, Optional
@@ -123,6 +124,29 @@ class OverlordPrimeAgent(BaseHeroAgent):
             return f"{host}/32"
         return host  # domain scope handled via manifest domains list
 
+    @staticmethod
+    def _check_auto_authorization(target_scope: str) -> tuple:
+        """(allowed, reason) for auto-created manifests."""
+        import ipaddress as _ip
+        host = target_scope.replace("http://", "").replace("https://", "").split("/")[0].split(":")[0]
+        if host == "localhost":
+            host = "127.0.0.1"
+        try:
+            if _ip.ip_address(host).is_private or _ip.ip_address(host).is_loopback:
+                return True, "local/lab target"
+        except ValueError:
+            pass
+        authorized = {d.strip().lower() for d in
+                      os.environ.get("REDOPS_AUTHORIZED_DOMAINS", "").split(",")
+                      if d.strip()}
+        if host.lower() in authorized:
+            return True, f"'{host}' present in REDOPS_AUTHORIZED_DOMAINS engagement list"
+        return False, (
+            f"Target '{host}' is not a local/lab target and is not in "
+            "REDOPS_AUTHORIZED_DOMAINS. Auto-manifest refused: supply an "
+            "explicit human-authorized MissionManifest or add the domain to "
+            "the authorized engagement list.")
+
     async def execute_mission(self, target_scope: str = "127.0.0.1",
                               manifest: Optional[MissionManifest] = None) -> Dict[str, Any]:
         """
@@ -137,6 +161,16 @@ class OverlordPrimeAgent(BaseHeroAgent):
 
         # ---- Mission Manifest: policy-bounded directive ---------------
         if manifest is None:
+            # Self-authorization gate: free-text/auto missions may only be
+            # created for local targets or explicitly authorized engagement
+            # domains (REDOPS_AUTHORIZED_DOMAINS). Anything else requires a
+            # caller-supplied manifest (human-signed engagement authority).
+            auth, auth_reason = self._check_auto_authorization(target_scope)
+            if not auth:
+                self.status = "IDLE"
+                self.log(f"🚫 [AUTHORIZATION DENIED] {auth_reason}")
+                return {"status": "DENIED", "reason": auth_reason,
+                        "scan_data": {"open_ports_count": 0}}
             scope_net = self._scope_network_for(target_scope)
             is_ip = scope_net.endswith("/32")
             manifest = MissionManifest(
