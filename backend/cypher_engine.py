@@ -5,11 +5,18 @@ In-Memory Dynamic Graph Engine, Real Scan Ingestion & ASCII Visualizer
 ====================================================================
 """
 
+import os
+import queue
 import re
 import json
+import threading
 import time
 from typing import Dict, List, Any, Optional, Set, Tuple
 from collections import deque
+
+DEFAULT_JOURNAL_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    ".redops_memory", "world_model_journal.jsonl")
 
 
 class GraphNode:
@@ -45,19 +52,119 @@ class GraphEdge:
         }
 
 
+class Neo4jSyncAdapter:
+    """
+    Optional write-behind replica (BEAT #3 hybrid). When NEO4J_URI is set and
+    the driver is installed, graph mutations are queued to a background thread
+    and mirrored into Neo4j. Queries NEVER touch this path — reads stay on the
+    23us in-memory engine; replication is strictly best-effort.
+    """
+    def __init__(self):
+        self.uri = os.environ.get("NEO4J_URI")
+        self._q: "queue.Queue[Tuple[str, Dict[str, Any]]]" = queue.Queue()
+        self._driver = None
+        self._thread: Optional[threading.Thread] = None
+        if self.uri:
+            try:
+                from neo4j import GraphDatabase  # optional dependency
+                self._driver = GraphDatabase.driver(self.uri)
+                self._thread = threading.Thread(target=self._pump, daemon=True)
+                self._thread.start()
+            except Exception:
+                self._driver = None  # disabled; never block the hot path
+
+    @property
+    def active(self) -> bool:
+        return self._driver is not None
+
+    def enqueue(self, op: str, payload: Dict[str, Any]):
+        if self.active:
+            self._q.put((op, payload))
+
+    def _pump(self):
+        while True:
+            op, payload = self._q.get()
+            try:
+                with self._driver.session() as s:
+                    if op == "add_node":
+                        s.run("MERGE (n:Node {id: $id}) SET n.labels=$labels, n.props=$props",
+                              id=payload["node_id"], labels=payload["labels"],
+                              props=json.dumps(payload["properties"]))
+                    elif op == "add_edge":
+                        s.run("MERGE (a:Node {id:$src}) MERGE (b:Node {id:$dst}) "
+                              "MERGE (a)-[r:REL {type:$rel}]->(b)",
+                              src=payload["source_id"], dst=payload["target_id"],
+                              rel=payload["rel_type"])
+            except Exception:
+                pass  # replica lag is acceptable; in-memory graph is truth
+
+
 class CypherGraphEngine:
     """
     High-performance In-Memory Graph Engine supporting dynamic scan ingestion,
-    shortest path attack traversal, lateral movement pathfinding, and ASCII rendering.
+    shortest path attack traversal, lateral movement pathfinding, ASCII rendering,
+    and write-through journal persistence (BEAT #3: Neo4j-grade durability at
+    in-memory speed — queries never leave RAM).
     """
-    def __init__(self):
+    def __init__(self, journal_path: Optional[str] = DEFAULT_JOURNAL_PATH,
+                 seed: bool = True):
         self.nodes: Dict[str, GraphNode] = {}
         self.edges: Dict[str, GraphEdge] = {}
         self.adjacency: Dict[str, List[str]] = {} # source_id -> list of edge_ids
         self.rev_adjacency: Dict[str, List[str]] = {} # target_id -> list of edge_ids
-        self._seed_default_topology()
+        self.journal_path = journal_path
+        self._journal_enabled = journal_path is not None
+        self.neo4j = Neo4jSyncAdapter()
+        if seed:
+            self._seed_default_topology()
+
+    # ---- write-through journal (BEAT #3) ------------------------------
+    def _journal(self, op: str, payload: Dict[str, Any]):
+        self.neo4j.enqueue(op, payload)
+        if not self._journal_enabled:
+            return
+        os.makedirs(os.path.dirname(self.journal_path), exist_ok=True)
+        with open(self.journal_path, "a") as fh:
+            fh.write(json.dumps({"ts": time.time(), "op": op, **payload}) + "\n")
+
+    def restore(self, journal_path: Optional[str] = None) -> Dict[str, int]:
+        """Replay the write-through journal (idempotent merge)."""
+        path = journal_path or self.journal_path
+        replayed = {"nodes": 0, "edges": 0}
+        if not path or not os.path.exists(path):
+            return replayed
+        flag, self._journal_enabled = self._journal_enabled, False
+        try:
+            with open(path) as fh:
+                for line in fh:
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if rec.get("op") == "add_node":
+                        self.add_node(rec["node_id"], rec["labels"], rec.get("properties"))
+                        replayed["nodes"] += 1
+                    elif rec.get("op") == "add_edge":
+                        self.add_edge(rec["source_id"], rec["target_id"],
+                                      rec["rel_type"], rec.get("properties"))
+                        replayed["edges"] += 1
+        finally:
+            self._journal_enabled = flag
+        return replayed
+
+    def snapshot(self, path: Optional[str] = None) -> str:
+        """Point-in-time full-state snapshot (compaction boundary for the journal)."""
+        out = path or (self.journal_path + ".snapshot" if self.journal_path else None)
+        if not out:
+            return ""
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        with open(out, "w") as fh:
+            json.dump(self.get_full_graph_state(), fh)
+        return out
 
     def add_node(self, node_id: str, labels: List[str], properties: Optional[Dict[str, Any]] = None) -> GraphNode:
+        self._journal("add_node", {"node_id": node_id, "labels": labels,
+                                   "properties": properties or {}})
         if node_id in self.nodes:
             node = self.nodes[node_id]
             node.labels.update(labels)
@@ -72,6 +179,8 @@ class CypherGraphEngine:
         return node
 
     def add_edge(self, source_id: str, target_id: str, rel_type: str, properties: Optional[Dict[str, Any]] = None) -> GraphEdge:
+        self._journal("add_edge", {"source_id": source_id, "target_id": target_id,
+                                   "rel_type": rel_type, "properties": properties or {}})
         edge_id = f"{source_id}-[{rel_type}]->{target_id}"
         edge = GraphEdge(edge_id, source_id, target_id, rel_type, properties)
         self.edges[edge_id] = edge

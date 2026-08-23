@@ -37,6 +37,7 @@ from backend.vector_memory import vector_memory
 from backend.self_healing_engine import self_healing_engine
 from backend.federated_exchange import federated_exchange
 from backend.cognition_daemon import cognition_daemon
+from backend.vaccine_engine import vaccine_engine
 
 
 def _register_gateway_tools():
@@ -708,6 +709,32 @@ async def federation_import(req: FederationImportRequest):
 @app.get("/api/federation/stats")
 async def federation_stats():
     return federated_exchange.get_stats()
+
+
+# ====================================================================
+# BEAT #1: OFFENSIVE VACCINE LOOP (attack -> defend -> verify -> patch)
+# ====================================================================
+class VaccineRunRequest(BaseModel):
+    finding: Dict[str, Any]
+
+
+@app.post("/api/vaccine/run")
+async def vaccine_run(req: VaccineRunRequest):
+    cycle = vaccine_engine.run_cycle(req.finding)
+    return cycle.model_dump()
+
+
+@app.get("/api/vaccine/report")
+async def vaccine_report():
+    return vaccine_engine.get_report()
+
+
+@app.get("/api/vaccine/status/{cycle_id}")
+async def vaccine_status(cycle_id: str):
+    cycle = vaccine_engine.cycles.get(cycle_id)
+    if not cycle:
+        return {"status": "NOT_FOUND", "cycle_id": cycle_id}
+    return cycle.model_dump()
 
 
 # ====================================================================
