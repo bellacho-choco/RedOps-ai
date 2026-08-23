@@ -53,6 +53,12 @@ class GSIEngine:
     def score(self) -> GSIScore:
         bench = benchmark_engine.collect()
         accuracy = bench.accuracy.precision_proxy or 0.0
+        # Real-world precision: validated findings / total validation attempts.
+        # Overrides the synthetic proxy whenever the exploit validator has run.
+        from backend.exploit_validator import exploit_validator
+        vsum = exploit_validator.summary()
+        if vsum["total_validations"] > 0:
+            accuracy = vsum["validated"] / vsum["total_validations"]
         safety = bench.safety.policy_compliance_rate or 0.0
         vaccine = vaccine_engine.get_report()
         exchange = federated_exchange.get_stats()
