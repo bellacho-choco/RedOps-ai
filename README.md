@@ -7,7 +7,7 @@
 [![Cython](https://img.shields.io/badge/Cython-C--Speed%20Acceleration-yellow.svg)](https://cython.org)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
-**REDOPS-AI** is a multi-agent cognitive cyber-range and red-teaming architecture platform built from scratch. It features 6 specialized agent heroes operating across dedicated split-screen terminals with sub-millisecond IPC communication, an in-memory Cypher attack graph solver, Cython C-speed entropy mutation, 315+ indexed security skills, and full Docker containerization.
+**REDOPS-AI** is a multi-agent cognitive cyber-range and red-teaming architecture platform built from scratch. It features 6 specialized agent heroes operating across dedicated split-screen terminals with sub-millisecond IPC communication, an in-memory Cypher attack graph solver (~177μs BFS p50 on a 200-node graph, measured), Cython entropy mutation with pure-Python fallback, 315+ indexed security skills (317 measured), and full Docker containerization.
 
 ---
 
@@ -36,9 +36,9 @@
    - Interactive **Command Line REPL** (`python run.py --mode cli`).
    - Futuristic **Web Cockpit HUD** with interactive Canvas attack graph visualizer (`http://127.0.0.1:8000`).
 2. **Sub-Millisecond Inter-Agent IPC**:
-   - Ultra-low latency asynchronous message bus with Go micro-daemon channel (`< 0.1ms` packet dispatch).
+   - Ultra-low latency asynchronous message bus with Go micro-daemon channel (measured: ~4μs p50 dispatch — see `benchmarks/claims.json`).
 3. **In-Memory Cypher Graph Engine**:
-   - Real-time BFS shortest path attack graph traversal (`23.2μs` response time).
+   - Real-time BFS shortest path attack graph traversal (measured: 177μs p50 on a 200-node graph — see `benchmarks/claims.json`).
 4. **Cython Hardware Acceleration**:
    - C-speed Shannon entropy math and polymorphic bytecode mutation modeling.
 5. **315+ Indexed Security Skills**:
@@ -71,7 +71,7 @@ Six new governed engines now sit between the swarm and the outside world
 | **Federated Exchange** (Phase III) | `backend/federated_exchange.py` | Cross-grid lesson sharing: IP/host/credential anonymization + HMAC-signed packs; imports verified & quarantined until local regression |
 | **Cognition Daemon** (Phase IV) | `backend/cognition_daemon.py` | Continuous adversarial reasoning loop: World-Model fingerprint drift detection, counterfactual forecasting, finding revalidation, OBSERVE/REASSESS/ALERT directives |
 
-### Decepticon-Beating Extensions (BEAT track)
+### Satellite-Beating Extensions (BEAT track)
 
 | Capability | Module | Description |
 |---|---|---|
@@ -87,6 +87,32 @@ Six new governed engines now sit between the swarm and the outside world
 `/api/vaccine/run|report|status/{id}`, `/api/intel/research|cache`,
 `/api/sandbox/session/open|input|close`, `/api/mission/package|package/verify`,
 `/api/gdt/parallel_dispatch`, `/api/recon/batch`.
+
+### OMEGA Pipeline (Phase 4 flagship)
+
+One command runs the whole cognitive pipeline — preflight health → governed
+GDT mission → environment model → attack-path reasoning → signed witness
+export → claim validation → composite scorecard with a tamper-evident
+**trust certificate** over measured claims only.
+
+- Runner: `backend/omega_runner.py` | Demo: `python scripts/omega_demo.py 127.0.0.1`
+- CLI: `omega [target]` inside `run.py --mode cli`
+- API: `POST /api/omega/run`, `POST /api/trust/certificate`,
+  `POST /api/synthesis/skill`, `GET /api/synthesis/staged`
+
+**Controlled self-improvement** (`backend/synthesis_engine.py`): regression-tested
+strategy lessons are synthesized into SKILL.md drafts in `skills/staging/`
+(PENDING_APPROVAL) — validated by the same PyYAML frontmatter parser as the
+live index, never auto-promoted.
+
+**Benchmark rigor** (`backend/benchmark_engine.py`): rot-detection health
+pre-checks exclude dead targets from scoring (transparent, not silent),
+seeded deterministic replay, per-finding JSONL traces. Measured performance
+claims are reproducible via `scripts/bench_claims.py` → `benchmarks/claims.json`.
+
+**Skills audit**: `GET /api/skills/audit` (per-agent counts, missing
+frontmatter/tags, duplicate names, parser mode), MITRE ATT&CK lookup at
+`GET /api/skills/mitre/{technique_id}`.
 
 **OMEGA REST APIs** (server `3.0.0-OMEGA`):
 `/api/mission/launch|state|abort`, `/api/gateway/token|execute|audit`,
@@ -198,3 +224,8 @@ MIT License.
 - /api/plugins governed marketplace (publish/install/trust gating)
 - /api/gsi/score composite global security index (0-100)
 - /api/wizard/preflight go/no-go preflight for sandbox/intel/audit ledger
+
+## EVOLUTION ENGINE (SELF-IMPROVEMENT)
+
+- `/api/evolution/cycle` posture -> weak axis -> vaccine cycles -> lessons -> re-score (ADVANCE/HOLD/REGRESS)
+- `/api/evolution/report` loop history + GSI trend

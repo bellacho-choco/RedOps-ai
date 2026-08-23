@@ -21,7 +21,7 @@ from backend.mission_engine import mission_engine, GoalNode, GoalState
 class LaneContext(BaseModel):
     """Isolated per-lane goal context (BEAT #7): the runner receives a deep
     copy of its goal + a frozen mission snapshot; no mutable refs to shared
-    frontier state — Decepticon-style 'system prompt reset' isolation."""
+    frontier state — Satellite-style 'system prompt reset' isolation."""
     goal: Dict[str, Any]
     agent: str
     snapshot: Dict[str, Any] = Field(default_factory=dict)

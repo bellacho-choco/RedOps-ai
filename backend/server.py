@@ -11,11 +11,11 @@ import json
 import os
 import time
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.swarm_bus import swarm_bus, AgentMessage
 from backend.agents import swarm_matrix
@@ -43,6 +43,7 @@ from backend.parallel_dispatch import parallel_dispatcher
 from backend.plugin_market import plugin_market, PluginBundle
 from backend.gsi_engine import gsi_engine
 from backend.deployment_wizard import deployment_wizard
+from backend.evolution_engine import evolution_engine
 
 
 def _register_gateway_tools():
@@ -191,6 +192,49 @@ async def start_swarm_operation(req: MissionStartRequest):
         "target_scope": req.target_scope,
         "message": "Autonomous RedOps Swarm deployed across all 6 specialized hero agents."
     }
+
+
+# ---- OMEGA Pipeline Runner (flagship, Phase 4) ---------------------
+class OmegaRunRequest(BaseModel):
+    target_scope: str = "127.0.0.1"
+    export_report: bool = True
+
+
+@app.post("/api/omega/run")
+async def omega_pipeline_run(req: OmegaRunRequest):
+    """One-command Omega Pipeline: preflight -> governed mission ->
+    environment model -> attack paths -> witness -> claims -> scorecard."""
+    from backend.omega_runner import omega_runner
+    report = await omega_runner.run(req.target_scope, req.export_report)
+    return report.model_dump()
+
+
+# ---- Trust certificate + skill auto-synthesis (Phase 4) ------------
+class TrustCertificateRequest(BaseModel):
+    subject: str
+    claims: Dict[str, Any]
+    evidence_refs: List[str] = Field(default_factory=list)
+
+
+@app.post("/api/trust/certificate")
+async def issue_certificate(req: TrustCertificateRequest):
+    from backend.synthesis_engine import issue_trust_certificate
+    cert = issue_trust_certificate(req.subject, req.claims, req.evidence_refs)
+    return {**cert.model_dump(), "valid": cert.verify()}
+
+
+@app.post("/api/synthesis/skill")
+async def synthesize_skill():
+    """Controlled self-improvement: stage a SKILL.md draft from
+    regression-tested strategy memory (never auto-promoted)."""
+    from backend.synthesis_engine import synthesis_engine
+    return synthesis_engine.synthesize().model_dump()
+
+
+@app.get("/api/synthesis/staged")
+async def list_staged_skills():
+    from backend.synthesis_engine import synthesis_engine
+    return {"staged": synthesis_engine.list_staged()}
 
 
 @app.post("/api/agent/command")
@@ -506,6 +550,56 @@ async def get_benchmark_report():
 async def get_benchmark_trend(limit: int = 20):
     return {"trend": benchmark_engine.trend(limit)}
 
+class ExternalBenchmarkRequest(BaseModel):
+    manifest_name: str
+    findings: List[Dict[str, Any]] = Field(default_factory=list)
+    seed: Optional[int] = None
+    run_health_check: bool = False
+
+
+@app.post("/api/benchmark/external")
+async def score_external_benchmark(req: ExternalBenchmarkRequest):
+    """External-target mode: checklist scoring of mission findings against a
+    benchmark target manifest. Optional rot-detection health pre-check and
+    seeded deterministic replay; per-finding JSONL trace exported."""
+    import json as _json
+    manifest_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "benchmarks", "targets", f"{req.manifest_name}.json")
+    if not os.path.exists(manifest_path):
+        raise HTTPException(status_code=404, detail="target manifest not found")
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        manifest = _json.load(f)
+    result = benchmark_engine.score_external(manifest, req.findings,
+                                             seed=req.seed)
+    if req.run_health_check:
+        health = benchmark_engine.health_check(manifest)
+        result.health = health["health"]
+        result.health_detail = health["health_detail"]
+        result.scored = health["scored"]
+    report = benchmark_engine.collect()
+    return {"checklist": result.model_dump(),
+            "safety": report.safety.model_dump(),
+            "publishable": report.publishable}
+
+
+@app.get("/api/benchmark/targets")
+async def list_benchmark_targets():
+    import json as _json
+    targets_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "benchmarks", "targets")
+    targets = []
+    if os.path.isdir(targets_dir):
+        for f in sorted(os.listdir(targets_dir)):
+            if f.endswith(".json"):
+                with open(os.path.join(targets_dir, f), encoding="utf-8") as fh:
+                    m = _json.load(fh)
+                targets.append({"name": m.get("name"), "image": m.get("image"),
+                                "expected_vulns": len(m.get("expected_vulns", []))})
+    return {"targets": targets}
+
+
 
 # ====================================================================
 # OMEGA: SANDBOX ARCHITECTURE (DRY-RUN VALIDATION LABS)
@@ -575,6 +669,20 @@ async def mcp_skill_content(skill_name: str):
         return {"protocol": "MCP", "status": "NOT_FOUND", "skill": skill_name}
     return {"protocol": "MCP", "resource": f"redops://skills/{skill_name}",
             "content": content}
+
+
+# ---- Skills audit & MITRE index (Step 12 hardening) -----------------
+@app.get("/api/skills/audit")
+async def skills_audit():
+    return skills_engine.audit()
+
+
+@app.get("/api/skills/mitre/{technique_id}")
+async def skills_mitre_lookup(technique_id: str):
+    results = skills_engine.lookup_mitre(technique_id)
+    if not results:
+        raise HTTPException(status_code=404, detail="no skills mapped to technique")
+    return {"technique": technique_id.upper(), "skills": results}
 
 
 @app.post("/mcp/sandbox/validate")
@@ -792,6 +900,18 @@ async def gsi_trend():
 @app.get("/api/wizard/preflight")
 async def wizard_preflight():
     return deployment_wizard.run_preflight().model_dump()
+
+
+# EVOLUTION ENGINE: continuous self-improvement (posture -> vaccine -> lessons -> re-score)
+@app.post("/api/evolution/cycle")
+async def evolution_cycle():
+    return evolution_engine.run().model_dump()
+
+
+@app.get("/api/evolution/report")
+async def evolution_report():
+    return evolution_engine.report()
+
 
 
 # ====================================================================
