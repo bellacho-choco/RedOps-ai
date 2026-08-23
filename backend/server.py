@@ -30,8 +30,12 @@ from backend.evidence_engine import evidence_engine
 from backend.strategy_memory import strategy_memory
 from backend.defense_engine import defense_engine, ai_vs_ai_campaign, DetectionRule
 from backend.benchmark_engine import benchmark_engine
-from backend.sandbox_engine import sandbox_manager
+from backend.sandbox_engine import sandbox_manager, SandboxTier
 from backend.skills_engine import skills_engine
+from backend.vector_memory import vector_memory
+from backend.self_healing_engine import self_healing_engine
+from backend.federated_exchange import federated_exchange
+from backend.cognition_daemon import cognition_daemon
 
 
 def _register_gateway_tools():
@@ -531,6 +535,122 @@ async def mcp_sandbox_validate(req: McpSandboxValidateRequest):
     else:
         result = sandbox_manager.dry_run_exploit(req.payload)
     return {"protocol": "MCP", "tool": "sandbox.validate", "result": result.model_dump()}
+
+
+# ====================================================================
+# OMEGA PHASE II: VECTOR MEMORY + MISSION PERSISTENCE + SANDBOX GRID
+# ====================================================================
+class VectorRecallRequest(BaseModel):
+    query: str
+    limit: int = 5
+    min_score: float = 0.1
+
+
+@app.post("/api/memory/vector/recall")
+async def vector_recall(req: VectorRecallRequest):
+    return {"results": vector_memory.recall_similar(req.query, req.limit, req.min_score)}
+
+
+@app.get("/api/memory/vector/stats")
+async def vector_stats():
+    return vector_memory.get_stats()
+
+
+@app.post("/api/mission/snapshot")
+async def mission_snapshot():
+    return mission_engine.snapshot()
+
+
+@app.post("/api/mission/restore")
+async def mission_restore():
+    return mission_engine.restore()
+
+
+class SandboxNodeRequest(BaseModel):
+    endpoint: str
+    tier: str = "CONTAINER_LAB"
+    capacity: int = 4
+
+
+@app.post("/api/sandbox/grid/register")
+async def sandbox_grid_register(req: SandboxNodeRequest):
+    node = sandbox_manager.register_remote_node(
+        req.endpoint, SandboxTier(req.tier.upper()), req.capacity)
+    return node.model_dump()
+
+
+@app.get("/api/sandbox/grid")
+async def sandbox_grid():
+    return sandbox_manager.grid_status()
+
+
+# ====================================================================
+# OMEGA PHASE III: SELF-HEALING + FEDERATED EXCHANGE
+# ====================================================================
+class HealRequest(BaseModel):
+    content: str
+    source_name: str = "Buffer"
+
+
+@app.post("/api/heal/scan")
+async def heal_scan(req: HealRequest):
+    return self_healing_engine.heal_buffer(req.content, req.source_name)
+
+
+@app.post("/api/heal/status/{patch_id}")
+async def heal_set_status(patch_id: str, status: str = "APPROVED"):
+    draft = self_healing_engine.set_status(patch_id, status)
+    if not draft:
+        return {"status": "NOT_FOUND", "patch_id": patch_id}
+    return draft.model_dump()
+
+
+@app.get("/api/heal/stats")
+async def heal_stats():
+    return self_healing_engine.get_stats()
+
+
+@app.get("/api/federation/export")
+async def federation_export(limit: int = 50):
+    return federated_exchange.export_lessons(limit)
+
+
+class FederationImportRequest(BaseModel):
+    pack: Dict[str, Any]
+    trusted_signature: Optional[str] = None
+
+
+@app.post("/api/federation/import")
+async def federation_import(req: FederationImportRequest):
+    return federated_exchange.import_lessons(req.pack, req.trusted_signature)
+
+
+@app.get("/api/federation/stats")
+async def federation_stats():
+    return federated_exchange.get_stats()
+
+
+# ====================================================================
+# OMEGA PHASE IV: CONTINUOUS COGNITION DAEMON
+# ====================================================================
+@app.post("/api/cognition/start")
+async def cognition_start():
+    return cognition_daemon.start()
+
+
+@app.post("/api/cognition/stop")
+async def cognition_stop():
+    return cognition_daemon.stop()
+
+
+@app.post("/api/cognition/cycle")
+async def cognition_cycle():
+    return (await cognition_daemon.run_cycle()).model_dump()
+
+
+@app.get("/api/cognition/state")
+async def cognition_state():
+    return cognition_daemon.get_state()
 
 
 # ====================================================================

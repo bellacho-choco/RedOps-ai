@@ -89,6 +89,15 @@ class StrategyMemory:
             context_tags=tags or [], regression_tested=regression_tested,
         )
         self.lessons[sig] = lesson
+        # Phase II: mirror into the semantic vector store for meaning-based
+        # recall across restarts. Import is lazy to avoid a module cycle.
+        try:
+            from backend.vector_memory import vector_memory
+            vector_memory.index_lesson(
+                f"{sig} [{' '.join(tags or [])}]", outcome,
+                metadata={"lesson_id": lesson.lesson_id, "tags": tags or []})
+        except Exception:
+            pass  # vector tier is additive; never block lesson recording
         return lesson
 
     def recall(self, attempt: str) -> Optional[Lesson]:

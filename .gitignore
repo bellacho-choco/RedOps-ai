@@ -37,3 +37,4 @@ ENV/
 # Docker / OS
 .DS_Store
 Thumbs.db
+.redops_memory/

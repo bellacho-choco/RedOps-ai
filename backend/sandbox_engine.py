@@ -60,6 +60,16 @@ _COMPILE_MARKERS = re.compile(
 )
 
 
+class RemoteSandboxNode(BaseModel):
+    """A distributed sandbox lab registered under Phase II federation."""
+    node_id: str = Field(default_factory=lambda: f"sbx-node-{uuid.uuid4().hex[:6]}")
+    endpoint: str                                  # e.g. https://lab-grid-01.internal:9443
+    tier: SandboxTier = SandboxTier.CONTAINER_LAB
+    capacity: int = 4
+    registered_at: float = Field(default_factory=time.time)
+    healthy: bool = True
+
+
 class SandboxManager:
     """
     Coordinates the three disposable lab tiers. All tiers share one rule:
@@ -67,6 +77,25 @@ class SandboxManager:
     """
     def __init__(self):
         self.history: List[SandboxResult] = []
+        self.remote_nodes: Dict[str, RemoteSandboxNode] = {}
+
+    # ---- Phase II: distributed sandbox grid --------------------------
+    def register_remote_node(self, endpoint: str,
+                             tier: SandboxTier = SandboxTier.CONTAINER_LAB,
+                             capacity: int = 4) -> RemoteSandboxNode:
+        node = RemoteSandboxNode(endpoint=endpoint, tier=tier, capacity=capacity)
+        self.remote_nodes[node.node_id] = node
+        return node
+
+    def deregister_remote_node(self, node_id: str) -> bool:
+        return self.remote_nodes.pop(node_id, None) is not None
+
+    def grid_status(self) -> Dict[str, Any]:
+        return {
+            "local_tiers": [t.value for t in SandboxTier],
+            "remote_nodes": [n.model_dump() for n in self.remote_nodes.values()],
+            "grid_capacity": sum(n.capacity for n in self.remote_nodes.values() if n.healthy),
+        }
 
     # ----------------------------------------------------------------
     # Tier 1: Containerized Linux Lab (exploit dry-run)

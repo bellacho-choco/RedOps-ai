@@ -7,6 +7,8 @@ Blueprint Section 2: policy-bounded mission decomposition.
 """
 
 import ipaddress
+import json
+import os
 import time
 import uuid
 from enum import Enum
@@ -239,6 +241,7 @@ class GoalDependencyTree:
         return {
             "total_goals": len(self.goals),
             "states": {s.value: sum(1 for g in self.goals.values() if g.state == s) for s in GoalState},
+            "goal_states": {gid: g.state.value for gid, g in self.goals.items()},
             "goals": [g.model_dump() for g in self.goals.values()],
         }
 
@@ -278,9 +281,14 @@ class Mission:
 
 
 class MissionEngine:
-    def __init__(self):
+    DEFAULT_SNAPSHOT_PATH = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        ".redops_memory", "missions.json")
+
+    def __init__(self, snapshot_path: Optional[str] = None):
         self.missions: Dict[str, Mission] = {}
         self.active_mission_id: Optional[str] = None
+        self.snapshot_path = snapshot_path or self.DEFAULT_SNAPSHOT_PATH
 
     def launch(self, manifest: MissionManifest, target: str) -> Mission:
         mission = Mission(manifest)
@@ -288,6 +296,49 @@ class MissionEngine:
         self.missions[manifest.mission_id] = mission
         self.active_mission_id = manifest.mission_id
         return mission
+
+    # ---- Phase II: mission persistence across restarts ---------------
+    def snapshot(self) -> Dict[str, Any]:
+        data = {
+            "active_mission_id": self.active_mission_id,
+            "missions": [{
+                "manifest": m.manifest.model_dump(),
+                "status": m.status,
+                "created_at": m.created_at,
+                "gdt": m.gdt.to_dict(),
+            } for m in self.missions.values()],
+        }
+        os.makedirs(os.path.dirname(self.snapshot_path), exist_ok=True)
+        tmp = self.snapshot_path + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp, self.snapshot_path)
+        return {"persisted": len(data["missions"]), "path": self.snapshot_path}
+
+    def restore(self) -> Dict[str, Any]:
+        if not os.path.exists(self.snapshot_path):
+            return {"restored": 0, "reason": "no snapshot found"}
+        try:
+            with open(self.snapshot_path) as fh:
+                data = json.load(fh)
+        except json.JSONDecodeError:
+            return {"restored": 0, "reason": "corrupt snapshot"}
+        restored = 0
+        for raw in data.get("missions", []):
+            manifest = MissionManifest(**raw["manifest"])
+            mission = Mission(manifest)
+            mission.status = raw.get("status", "ARCHIVED")
+            if mission.status == "ACTIVE":
+                mission.status = "INTERRUPTED"  # never silently resume live ops
+            mission.created_at = raw.get("created_at", time.time())
+            for gid, gstate in raw.get("gdt", {}).get("goal_states", {}).items():
+                if gid in mission.gdt.goals and gstate in ("PENDING", "DONE", "BLOCKED"):
+                    mission.gdt.goals[gid].state = GoalState(gstate)
+            mission.gdt._refresh_ready()
+            self.missions[manifest.mission_id] = mission
+            restored += 1
+        self.active_mission_id = None
+        return {"restored": restored}
 
     def get_active(self) -> Optional[Mission]:
         if self.active_mission_id:

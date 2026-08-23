@@ -66,6 +66,25 @@ class AttackPathEngine:
     def __init__(self, max_depth: int = 8, max_paths: int = 64):
         self.max_depth = max_depth
         self.max_paths = max_paths
+        # Section 14 Verification Anchor: an optional async hook that
+        # live-checks a node's active state before it may be scored into
+        # a kill-chain. Protects against cognitive drift / hallucinated
+        # topology being treated as ground truth.
+        self.verification_hook = None  # async (node_id) -> bool
+        self.unverified_nodes: List[str] = []
+
+    async def verify_anchors(self, node_ids: List[str]) -> Dict[str, bool]:
+        """Run the verification anchor over path nodes (live check)."""
+        results: Dict[str, bool] = {}
+        if not self.verification_hook:
+            return {nid: True for nid in node_ids}
+        for nid in node_ids:
+            try:
+                results[nid] = bool(await self.verification_hook(nid))
+            except Exception:
+                results[nid] = False
+        self.unverified_nodes = [nid for nid, ok in results.items() if not ok]
+        return results
 
     # ----------------------------------------------------------------
     # Path enumeration (DFS, depth-capped)
