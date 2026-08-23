@@ -131,6 +131,33 @@ class RedOpsSkillEngine:
         except Exception as e:
             pass
 
+    def load_bundle(self, bundle_path: str) -> Dict[str, Any]:
+        """
+        Declarative plugin-bundle loader (PLAN Step 11): a bundle is a
+        directory containing a `bundle.json` manifest plus one or more
+        SKILL.md playbooks. Registered into the live index without restart.
+        """
+        import json as _json
+        manifest_path = os.path.join(bundle_path, "bundle.json")
+        if not os.path.isdir(bundle_path):
+            return {"status": "NOT_FOUND", "path": bundle_path}
+        manifest: Dict[str, Any] = {"name": os.path.basename(bundle_path)}
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest.update(_json.load(f))
+            except Exception:
+                return {"status": "BAD_MANIFEST", "path": manifest_path}
+        before = len(self.skills)
+        for root, _, files in os.walk(bundle_path):
+            for file in files:
+                if file.lower() == "skill.md":
+                    self._parse_and_register_skill(os.path.join(root, file))
+        loaded = len(self.skills) - before
+        self._assign_skills_to_agents()
+        return {"status": "LOADED", "bundle": manifest.get("name"),
+                "skills_loaded": loaded, "total_skills": len(self.skills)}
+
     def _assign_skills_to_agents(self):
         """
         Maps indexed skills to each hero's domain specialization.
@@ -140,7 +167,7 @@ class RedOpsSkillEngine:
             cat = skill.category.lower()
 
             # 1. OVERLORD-PRIME: Orchestration, RoE, CONOPS, Threat Profiles
-            if cat in ["soundwave", "satellite", "orchestration", "benchmark"] or "opplan" in name:
+            if cat in ["soundwave", "adversary", "orchestration", "benchmark"] or "opplan" in name:
                 self.agent_skill_mapping["OVERLORD-PRIME"].append(skill.name)
 
             # 2. SPECTRE-RECON: Surface discovery, OSINT, Recon, Wireless, Cloud, IoT

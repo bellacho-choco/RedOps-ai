@@ -6,7 +6,7 @@ metadata:
   subdomain: orchestration
   when_to_use: "start engagement, new engagement, engagement status, phase transition, go/no-go, deconfliction, emergency stop, engagement complete, wrap up"
   tags: engagement, lifecycle, planning, phase-transition, deconfliction, emergency, completion
-  upstream_ref: "Decepticon engagement lifecycle — orchestrator-level planning skill, no direct attack technique"
+  upstream_ref: "Satellite engagement lifecycle — orchestrator-level planning skill, no direct attack technique"
 ---
 
 # Engagement Lifecycle Management
@@ -26,7 +26,7 @@ Before starting any engagement, verify:
 2. **Infrastructure ready**:
    - [ ] Docker sandbox running with required tools
    - [ ] C2 server reachable if post-exploitation is in scope: `nc -z c2-sliver 31337` (gRPC port)
-   - [ ] Operator config exists: `/workspace/.sliver-configs/decepticon.cfg`
+   - [ ] Operator config exists: `/workspace/.sliver-configs/satellite.cfg`
    - [ ] Output directories created (`<engagement>/recon/`, `<engagement>/exploit/`, etc.)
 
 3. **If any document is missing**: Delegate to `soundwave` sub-agent first.

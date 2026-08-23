@@ -22,7 +22,8 @@ docker = ["docker>=7.0"]
 test = ["pytest>=8", "pytest-asyncio", "requests"]
 
 [project.scripts]
-redops-server = "backend.server:app"
+redops = "cli.entry:main"
+redops-server = "cli.entry:main"
 
 [tool.setuptools.packages.find]
-include = ["backend*", "cython_core*"]
+include = ["backend*", "cython_core*", "cli*"]

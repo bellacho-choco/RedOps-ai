@@ -1,0 +1,16 @@
+{
+  "name": "owasp-juice-shop",
+  "image": "bkimminich/juice-shop:latest",
+  "port": 3000,
+  "scope": {"domains": ["localhost"], "ports": [3000]},
+  "expected_vulns": [
+    {"id": "sqli", "type": "SQL Injection", "severity": "CRITICAL"},
+    {"id": "xss", "type": "Reflected XSS", "severity": "HIGH"},
+    {"id": "broken-auth", "type": "Broken Authentication", "severity": "CRITICAL"},
+    {"id": "idor", "type": "Insecure Direct Object Reference", "severity": "HIGH"},
+    {"id": "jwt", "type": "JWT Misconfiguration", "severity": "HIGH"},
+    {"id": "sensitive-data", "type": "Sensitive Data Exposure", "severity": "MEDIUM"},
+    {"id": "xxe", "type": "XML External Entity", "severity": "HIGH"},
+    {"id": "path-traversal", "type": "Path Traversal", "severity": "HIGH"}
+  ]
+}

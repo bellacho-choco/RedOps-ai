@@ -1,7 +1,7 @@
 """
 ====================================================================
 PROJECT REDOPS-OMEGA - OFFENSIVE VACCINE LOOP (BEAT #1, FLAGSHIP)
-Decepticon only *planned* this. We ship it: attack -> defend -> verify
+The competitor only *planned* this. We ship it: attack -> defend -> verify
 -> patch -> regression, as one closed governed cycle.
 
    finding -> defense rule synthesized -> attack replay vs rule

@@ -249,7 +249,7 @@ class GoalDependencyTree:
 
 
 # ====================================================================
-# SIGNED ENGAGEMENT PACKAGE (Step 3: Decepticon parity, cryptographically
+# SIGNED ENGAGEMENT PACKAGE (Step 3: Satellite parity, cryptographically
 # ahead — RoE/ConOps/OPPLAN documents are HMAC tamper-evident.)
 # ====================================================================
 GOAL_MITRE_MAP: Dict[str, Dict[str, str]] = {

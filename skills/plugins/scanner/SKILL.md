@@ -4,7 +4,7 @@ description: Stage 1 broad-spectrum scanner playbook. Sharded sweep over very la
 metadata:
   subdomain: orchestration
   when_to_use: "scanner stage 1 broad spectrum codebase sweep candidate sharded pipeline"
-  upstream_ref: "Decepticon vulnresearch pipeline — stage 1 scanner role"
+  upstream_ref: "Satellite vulnresearch pipeline — stage 1 scanner role"
 ---
 
 # Scanner Skill
@@ -50,7 +50,7 @@ and hand back to the orchestrator.
 
 `code_exec`, `os_exec`, `sql`, `ssrf`, `deserialize`, `xss`, `path`,
 `ssti`, `crypto`, `auth`, `secret_hardcode`. See
-`decepticon/research/scanner_tools.py` for the exact regex table.
+`satellite/research/scanner_tools.py` for the exact regex table.
 
 ## What NOT to do
 
