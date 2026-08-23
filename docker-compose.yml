@@ -58,6 +58,18 @@ services:
     networks:
       - redops-net
 
+  # 4. Real Governed Sandbox (Step 1: isolated Kali tooling lab)
+  redops-sandbox:
+    image: kalilinux/kali-rolling:latest
+    container_name: redops-sandbox
+    command: ["bash"]
+    stdin_open: true
+    tty: true
+    networks:
+      - sandbox-net   # two-network isolation: no route to redops-net
+
 networks:
   redops-net:
+    driver: bridge
+  sandbox-net:
     driver: bridge

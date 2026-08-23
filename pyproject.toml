@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redops-omega"
+version = "0.4.0"
+description = "Autonomous adversarial security intelligence: governed multi-agent red-ops platform."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "pydantic>=2.7",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# Real governed container backend (DockerExecutor optional at runtime)
+docker = ["docker>=7.0"]
+test = ["pytest>=8", "pytest-asyncio", "requests"]
+
+[project.scripts]
+redops-server = "backend.server:app"
+
+[tool.setuptools.packages.find]
+include = ["backend*", "cython_core*"]

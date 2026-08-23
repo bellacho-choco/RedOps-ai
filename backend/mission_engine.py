@@ -6,6 +6,8 @@ Blueprint Section 2: policy-bounded mission decomposition.
 ====================================================================
 """
 
+import hashlib
+import hmac
 import ipaddress
 import json
 import os
@@ -244,6 +246,95 @@ class GoalDependencyTree:
             "goal_states": {gid: g.state.value for gid, g in self.goals.items()},
             "goals": [g.model_dump() for g in self.goals.values()],
         }
+
+
+# ====================================================================
+# SIGNED ENGAGEMENT PACKAGE (Step 3: Decepticon parity, cryptographically
+# ahead — RoE/ConOps/OPPLAN documents are HMAC tamper-evident.)
+# ====================================================================
+GOAL_MITRE_MAP: Dict[str, Dict[str, str]] = {
+    "g1-recon": {"tactic": "TA0043 Reconnaissance", "technique": "T1595 Active Scanning"},
+    "g2-topology": {"tactic": "Modeling", "technique": "World-Model graph synthesis"},
+    "g3-vuln": {"tactic": "TA0002 Execution", "technique": "T1190 Exploit Public-Facing Application"},
+    "g4-paths": {"tactic": "TA0004 Privilege Escalation", "technique": "Attack-graph chain reasoning"},
+    "g5-entropy": {"tactic": "TA0006 Credential Access", "technique": "T1552 Unsecured Credentials"},
+    "g6-evidence": {"tactic": "TA0005 Defense Evasion", "technique": "False-positive validation"},
+    "g7-debrief": {"tactic": "Impact Assessment", "technique": "Executive remediation planning"},
+}
+
+HERO_ROSTER = ["OVERLORD-PRIME", "SPECTRE-RECON", "NEXUS-CYPHER",
+               "VORTEX-EXPLOIT", "CIPHER-MORPH", "CHRONO-DEBRIEF"]
+
+
+class EngagementPackage(BaseModel):
+    package_id: str = Field(default_factory=lambda: f"pkg-{uuid.uuid4().hex[:8]}")
+    mission_id: str
+    generated_at: float = Field(default_factory=time.time)
+    roe: str
+    conops: str
+    opplan: str
+    deconfliction: str
+    signature: str = ""
+    signature_key_hint: str = ""
+
+
+def _sign_text(secret: bytes, text: str) -> str:
+    return hmac.new(secret, text.encode(), hashlib.sha256).hexdigest()
+
+
+def generate_engagement_package(mission: "Mission",
+                                 secret: bytes) -> EngagementPackage:
+    """Build the RoE/ConOps/OPPLAN bundle and seal it with the policy key."""
+    manifest = mission.manifest
+    scope = manifest.target_scope
+    roe = manifest.rules_of_engagement
+
+    roe_md = [
+        "# RULES OF ENGAGEMENT (RoE)",
+        f"Mission: {manifest.name} ({manifest.mission_id})",
+        f"- Networks in scope: {scope.networks or 'none declared'}",
+        f"- Domains in scope: {scope.domains or 'none declared'}",
+        f"- Exclusions: {scope.exclusions or 'none'}",
+        f"- Max QPS: {roe.max_qps}",
+        f"- Allowed hours (UTC): {roe.allowed_hours_utc or 'unrestricted'}",
+        f"- Zero-collateral policy: {'ENFORCED' if roe.zero_collateral_policy else 'relaxed'}",
+    ]
+    conops_md = ["# CONCEPT OF OPERATIONS (ConOps)",
+                 f"Swarm of {len(HERO_ROSTER)} governed heroes executing a "
+                 "policy-bounded kill-chain via a Goal Dependency Tree:",
+                 *[f"- {h}" for h in HERO_ROSTER]]
+    opplan_md = ["# OPERATIONS PLAN (OPPLAN)", ""]
+    for goal in mission.gdt.goals.values():
+        mitre = GOAL_MITRE_MAP.get(goal.goal_id, {"tactic": "n/a", "technique": "n/a"})
+        deps = ", ".join(goal.depends_on) if goal.depends_on else "—"
+        opplan_md.append(
+            f"## {goal.goal_id}: {goal.title}\n"
+            f"- Agent: {goal.agent} | Depends on: {deps}\n"
+            f"- MITRE: {mitre['tactic']} / {mitre['technique']}")
+
+    deconfliction = (
+        "# DEconfliction Notes\n"
+        "All execution routes through the Policy Engine + Tool Gateway; "
+        "out-of-scope targets are denied pre-execution, post-DNS. High-risk "
+        "MITRE techniques require human cryptographic approval. Audit ledger "
+        "is hash-chained and verifiable end-to-end.")
+
+    body = "\n".join(roe_md) + "\n" + "\n".join(conops_md) + "\n" + "\n".join(opplan_md)
+    sig = _sign_text(secret, body)
+    hint = hashlib.sha256(secret).hexdigest()[:12]
+    return EngagementPackage(
+        mission_id=manifest.mission_id,
+        roe="\n".join(roe_md), conops="\n".join(conops_md),
+        opplan="\n".join(opplan_md), deconfliction=deconfliction,
+        signature=sig, signature_key_hint=hint)
+
+
+def verify_engagement_package(package: EngagementPackage,
+                              secret: bytes) -> Dict[str, Any]:
+    body = package.roe + "\n" + package.conops + "\n" + package.opplan
+    expected = _sign_text(secret, body)
+    return {"valid": hmac.compare_digest(expected, package.signature),
+            "package_id": package.package_id, "signature": package.signature}
 
 
 # ====================================================================

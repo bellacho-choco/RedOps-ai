@@ -101,6 +101,10 @@ class CapabilityToken:
     def __init__(self, secret: Optional[bytes] = None):
         self._secret = secret or secrets.token_bytes(32)
 
+    def raw_secret(self) -> bytes:
+        """Signing key handle for same-process seals (engagement packages)."""
+        return self._secret
+
     def issue(self, agent: str, tool: str, mission_id: str, ttl_s: int = 3600) -> str:
         expiry = int(time.time()) + ttl_s
         payload = f"{agent}|{tool}|{mission_id}|{expiry}"

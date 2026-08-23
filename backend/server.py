@@ -20,7 +20,8 @@ from pydantic import BaseModel
 from backend.swarm_bus import swarm_bus, AgentMessage
 from backend.agents import swarm_matrix
 from backend.cypher_engine import graph_engine
-from backend.mission_engine import mission_engine, MissionManifest
+from backend.mission_engine import (mission_engine, MissionManifest,
+    generate_engagement_package, verify_engagement_package, EngagementPackage)
 from backend.policy_engine import policy_engine, ActionRequest, RiskLevel
 from backend.tool_gateway import tool_gateway
 from backend.live_scanner import socket_scanner, web_auditor, dns_auditor
@@ -30,12 +31,15 @@ from backend.evidence_engine import evidence_engine
 from backend.strategy_memory import strategy_memory
 from backend.defense_engine import defense_engine, ai_vs_ai_campaign, DetectionRule
 from backend.benchmark_engine import benchmark_engine
-from backend.sandbox_engine import sandbox_manager, SandboxTier
+from backend.sandbox_engine import sandbox_manager, docker_executor, SandboxTier
 from backend.skills_engine import skills_engine
 from backend.vector_memory import vector_memory
 from backend.self_healing_engine import self_healing_engine
 from backend.federated_exchange import federated_exchange
 from backend.cognition_daemon import cognition_daemon
+from backend.vaccine_engine import vaccine_engine
+from backend.intel_engine import intel_engine
+from backend.parallel_dispatch import parallel_dispatcher
 
 
 def _register_gateway_tools():
@@ -57,11 +61,37 @@ def _register_gateway_tools():
     async def _graph_query(target: str, **params):
         return graph_engine.execute_query(params.get("query", "MATCH (h:Host) RETURN h"))
 
+    async def _sandbox_exec(target: str, **params):
+        """executor="sandbox": real Docker run when daemon reachable; simulation
+        dry otherwise. Either way an evidence token is hash-chained on top."""
+        command = params.get("command", "id")
+        if docker_executor.available():
+            exec_result = docker_executor.run_ephemeral(
+                command, timeout=params.get("timeout", 30.0))
+            mode, payload = "REAL", exec_result.model_dump()
+            summary_label = f"exit={exec_result.exit_code}"
+        else:
+            sim = sandbox_manager.dry_run_exploit(command)
+            mode, payload = "SIMULATED", sim.model_dump()
+            summary_label = f"verdict={sim.verdict.value}"
+        finding = evidence_engine.register_finding(
+            f"Sandbox exec: {command[:64]}", target, "TOOL-GATEWAY", "INFO")
+        token = evidence_engine.attach_evidence(
+            finding.finding_id, "TOOL-GATEWAY", payload,
+            artifact_type="sandbox_exec",
+            summary=f"{mode} run {summary_label}")
+        return {
+            "mode": mode, "result": payload,
+            "finding_id": finding.finding_id,
+            "evidence_token": token.token_id if token else None,
+        }
+
     tool_gateway.register_tool("port_scan", _port_scan)
     tool_gateway.register_tool("http_probe", _http_probe)
     tool_gateway.register_tool("dns_enum", _dns_enum)
     tool_gateway.register_tool("sast_scan", _sast_scan)
     tool_gateway.register_tool("graph_query", _graph_query)
+    tool_gateway.register_tool("sandbox_exec", _sandbox_exec)
 
 
 _register_gateway_tools()
@@ -217,6 +247,25 @@ async def get_mission_state():
 async def abort_mission(mission_id: str):
     ok = mission_engine.abort(mission_id)
     return {"status": "ABORTED" if ok else "NOT_FOUND", "mission_id": mission_id}
+
+
+# ---- Signed engagement package (RoE/ConOps/OPPLAN, tamper-evident) ----
+@app.post("/api/mission/package")
+async def mission_package(req: MissionLaunchRequest):
+    manifest = req.manifest
+    mission = mission_engine.missions.get(manifest.mission_id)
+    if not mission:
+        mission = mission_engine.launch(manifest, req.target)
+    package = generate_engagement_package(
+        mission, tool_gateway.policy.token_issuer.raw_secret())
+    return package.model_dump()
+
+
+@app.post("/api/mission/package/verify")
+async def mission_package_verify(package: EngagementPackage):
+    result = verify_engagement_package(
+        package, tool_gateway.policy.token_issuer.raw_secret())
+    return result
 
 
 # ====================================================================
@@ -584,6 +633,40 @@ async def sandbox_grid():
     return sandbox_manager.grid_status()
 
 
+# ---- Interactive governed sessions (prompt-detect -> input -> output) ----
+class SandboxSessionOpenRequest(BaseModel):
+    name: str = "ops"
+
+
+class SandboxSessionInputRequest(BaseModel):
+    text: str
+    timeout: float = 30.0
+
+
+@app.post("/api/sandbox/session/open")
+async def sandbox_session_open(req: SandboxSessionOpenRequest):
+    if not docker_executor.available():
+        return {"status": "UNAVAILABLE", "reason": "docker daemon not reachable; "
+                    "simulation tiers remain active"}
+    session = docker_executor.open_session(req.name)
+    return session.model_dump()
+
+
+@app.post("/api/sandbox/session/{session_id}/input")
+async def sandbox_session_input(session_id: str, req: SandboxSessionInputRequest):
+    try:
+        result = docker_executor.send_input(session_id, req.text, req.timeout)
+    except KeyError:
+        return {"status": "NOT_FOUND", "session_id": session_id}
+    return result.model_dump()
+
+
+@app.post("/api/sandbox/session/{session_id}/close")
+async def sandbox_session_close(session_id: str):
+    closed = docker_executor.close_session(session_id)
+    return {"closed": closed, "session_id": session_id}
+
+
 # ====================================================================
 # OMEGA PHASE III: SELF-HEALING + FEDERATED EXCHANGE
 # ====================================================================
@@ -628,6 +711,77 @@ async def federation_import(req: FederationImportRequest):
 @app.get("/api/federation/stats")
 async def federation_stats():
     return federated_exchange.get_stats()
+
+
+# ====================================================================
+# BEAT #2: LIVE THREAT RESEARCH ENGINE (Tavily HTTP connector)
+# ====================================================================
+class IntelQueryRequest(BaseModel):
+    query: str
+    depth: str = "basic"
+    max_results: int = 5
+
+
+@app.post("/api/intel/research")
+async def intel_research(req: IntelQueryRequest):
+    return intel_engine.research(req.query, req.depth, req.max_results).model_dump()
+
+
+@app.get("/api/intel/cache")
+async def intel_cache():
+    return intel_engine.get_stats()
+
+
+# ====================================================================
+# BEAT #5: SONIC SPEED LAYER (parallel dispatch, batch recon, caching)
+# ====================================================================
+async def _default_goal_runner(ctx) -> str:
+    """Runner hook: READY lanes run inline against an isolated context."""
+    return f"lane {ctx.goal.get('goal_id')} handled by {ctx.agent}"
+
+
+class BatchReconRequest(BaseModel):
+    targets: List[str]
+    max_concurrent: int = 8
+
+
+@app.post("/api/recon/batch")
+async def recon_batch(req: BatchReconRequest):
+    return await socket_scanner.batch_recon(req.targets, req.max_concurrent)
+
+
+@app.post("/api/gdt/parallel_dispatch")
+async def gdt_parallel_dispatch():
+    lanes = await parallel_dispatcher.dispatch(_default_goal_runner)
+    return {"dispatched": [l.model_dump() for l in lanes],
+            "frontier_done": mission_engine.get_active().gdt.to_dict()
+            if mission_engine.get_active() else None}
+
+
+# ====================================================================
+# BEAT #1: OFFENSIVE VACCINE LOOP (attack -> defend -> verify -> patch)
+# ====================================================================
+class VaccineRunRequest(BaseModel):
+    finding: Dict[str, Any]
+
+
+@app.post("/api/vaccine/run")
+async def vaccine_run(req: VaccineRunRequest):
+    cycle = vaccine_engine.run_cycle(req.finding)
+    return cycle.model_dump()
+
+
+@app.get("/api/vaccine/report")
+async def vaccine_report():
+    return vaccine_engine.get_report()
+
+
+@app.get("/api/vaccine/status/{cycle_id}")
+async def vaccine_status(cycle_id: str):
+    cycle = vaccine_engine.cycles.get(cycle_id)
+    if not cycle:
+        return {"status": "NOT_FOUND", "cycle_id": cycle_id}
+    return cycle.model_dump()
 
 
 # ====================================================================
