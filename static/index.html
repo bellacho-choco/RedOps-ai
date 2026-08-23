@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROJECT REDOPS-AI | Autonomous Multi-Agent Matrix</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/hud.css">
+</head>
+<body class="crt-overlay">
+    <!-- Top Holographic HUD Header -->
+    <header class="hud-header">
+        <div class="header-left">
+            <div class="logo-glitch" data-text="REDOPS-AI">REDOPS-AI</div>
+            <div class="badge-tag">NEURAL REDOPS MULTI-AGENT COCKPIT</div>
+            <div class="status-pill"><span class="pulse-dot"></span> IPC: <span id="ipcLatencyVal">0.082 ms</span></div>
+        </div>
+
+        <div class="header-center">
+            <div class="killchain-meter">
+                <span class="meter-label">KILL-CHAIN PROGRESSION (MATRIX)</span>
+                <div class="progress-bar-wrap">
+                    <div class="progress-fill" id="killchainProgress" style="width: 15%;"></div>
+                </div>
+                <div class="phase-indicators">
+                    <span class="phase active" id="p1">RECON</span>
+                    <span class="phase" id="p2">GRAPH MAP</span>
+                    <span class="phase" id="p3">AST TAINT</span>
+                    <span class="phase" id="p4">CYTHON EVADE</span>
+                    <span class="phase" id="p5">CROWN JEWEL</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <button class="hud-btn" id="audioToggleBtn" title="Toggle Neural Audio Synth">🔊 SFX ON</button>
+            <button class="hud-btn" id="scanlinesToggleBtn">📺 CRT FX</button>
+            <button class="hud-btn primary glow-btn" id="deployMissionBtn">🚀 DEPLOY SWARM</button>
+        </div>
+    </header>
+
+    <!-- Main Multi-Agent Split Cockpit -->
+    <main class="cockpit-container">
+        <!-- 6 Dedicated Agent Hero Terminals Grid -->
+        <section class="terminals-grid">
+            <!-- Terminal 1: OVERLORD-PRIME -->
+            <div class="agent-terminal" id="term-OVERLORD-PRIME" style="--agent-color: #ff0055;">
+                <div class="terminal-header">
+                    <div class="agent-badge">👑 OVERLORD-PRIME</div>
+                    <div class="agent-role">Killchain Orchestrator</div>
+                    <div class="agent-stat" id="stat-OVERLORD-PRIME">ONLINE</div>
+                </div>
+                <div class="terminal-body" id="logs-OVERLORD-PRIME"></div>
+                <div class="terminal-footer">
+                    <span class="spec-tag">Specialization: MITRE Pathfinding</span>
+                    <button class="mini-btn" onclick="taskAgent('OVERLORD-PRIME')">DIRECTIVE</button>
+                </div>
+            </div>
+
+            <!-- Terminal 2: SPECTRE-RECON -->
+            <div class="agent-terminal" id="term-SPECTRE-RECON" style="--agent-color: #00f0ff;">
+                <div class="terminal-header">
+                    <div class="agent-badge">🛰️ SPECTRE-RECON</div>
+                    <div class="agent-role">Surface & Protocol Hunter</div>
+                    <div class="agent-stat" id="stat-SPECTRE-RECON">ONLINE</div>
+                </div>
+                <div class="terminal-body" id="logs-SPECTRE-RECON"></div>
+                <div class="terminal-footer">
+                    <span class="spec-tag">Specialization: Go Daemon Sub-ms Probing</span>
+                    <button class="mini-btn" onclick="taskAgent('SPECTRE-RECON')">DIRECTIVE</button>
+                </div>
+            </div>
+
+            <!-- Terminal 3: NEXUS-CYPHER -->
+            <div class="agent-terminal" id="term-NEXUS-CYPHER" style="--agent-color: #00ff66;">
+                <div class="terminal-header">
+                    <div class="agent-badge">🧬 NEXUS-CYPHER</div>
+                    <div class="agent-role">Graph Topology Navigator</div>
+                    <div class="agent-stat" id="stat-NEXUS-CYPHER">ONLINE</div>
+                </div>
+                <div class="terminal-body" id="logs-NEXUS-CYPHER"></div>
+                <div class="terminal-footer">
+                    <span class="spec-tag">Specialization: Cypher Lateral Pathfinding</span>
+                    <button class="mini-btn" onclick="taskAgent('NEXUS-CYPHER')">DIRECTIVE</button>
+                </div>
+            </div>
+
+            <!-- Terminal 4: VORTEX-EXPLOIT -->
+            <div class="agent-terminal" id="term-VORTEX-EXPLOIT" style="--agent-color: #ff9900;">
+                <div class="terminal-header">
+                    <div class="agent-badge">⚡ VORTEX-EXPLOIT</div>
+                    <div class="agent-role">Vuln & Logic Synthesizer</div>
+                    <div class="agent-stat" id="stat-VORTEX-EXPLOIT">ONLINE</div>
+                </div>
+                <div class="terminal-body" id="logs-VORTEX-EXPLOIT"></div>
+                <div class="terminal-footer">
+                    <span class="spec-tag">Specialization: AST Taint & Logic Flaws</span>
+                    <button class="mini-btn" onclick="taskAgent('VORTEX-EXPLOIT')">DIRECTIVE</button>
+                </div>
+            </div>
+
+            <!-- Terminal 5: CIPHER-MORPH -->
+            <div class="agent-terminal" id="term-CIPHER-MORPH" style="--agent-color: #aa00ff;">
+                <div class="terminal-header">
+                    <div class="agent-badge">🛡️ CIPHER-MORPH</div>
+                    <div class="agent-role">C-Speed Evasion Core</div>
+                    <div class="agent-stat" id="stat-CIPHER-MORPH">ONLINE</div>
+                </div>
+                <div class="terminal-body" id="logs-CIPHER-MORPH"></div>
+                <div class="terminal-footer">
+                    <span class="spec-tag">Specialization: Cython Entropy & Polymorphism</span>
+                    <button class="mini-btn" onclick="taskAgent('CIPHER-MORPH')">DIRECTIVE</button>
+                </div>
+            </div>
+
+            <!-- Terminal 6: CHRONO-DEBRIEF -->
+            <div class="agent-terminal" id="term-CHRONO-DEBRIEF" style="--agent-color: #00e5ff;">
+                <div class="terminal-header">
+                    <div class="agent-badge">📊 CHRONO-DEBRIEF</div>
+                    <div class="agent-role">Countermeasure Architect</div>
+                    <div class="agent-stat" id="stat-CHRONO-DEBRIEF">ONLINE</div>
+                </div>
+                <div class="terminal-body" id="logs-CHRONO-DEBRIEF"></div>
+                <div class="terminal-footer">
+                    <span class="spec-tag">Specialization: Real-Time Mitigation Intel</span>
+                    <button class="mini-btn" onclick="taskAgent('CHRONO-DEBRIEF')">DIRECTIVE</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Side: Holographic Attack Graph & Cypher Console -->
+        <aside class="hud-sidebar">
+            <div class="sidebar-panel graph-panel">
+                <div class="panel-header">
+                    <span>🌐 CYPHER ATTACK GRAPH</span>
+                    <span class="pulse-chip" id="graphNodesCount">6 NODES | 8 EDGES</span>
+                </div>
+                <div class="canvas-wrapper">
+                    <canvas id="attackGraphCanvas"></canvas>
+                </div>
+                <div class="graph-legend">
+                    <span class="legend-item"><span class="color-box uncompromised"></span> Clean</span>
+                    <span class="legend-item"><span class="color-box discovered"></span> Discovered</span>
+                    <span class="legend-item"><span class="color-box compromised"></span> Compromised</span>
+                    <span class="legend-item"><span class="color-box crown"></span> Crown Jewel</span>
+                </div>
+            </div>
+
+            <div class="sidebar-panel cypher-panel">
+                <div class="panel-header">
+                    <span>⚡ CYPHER DIRECT QUERY CONSOLE</span>
+                    <button class="mini-btn" id="runCypherBtn">EXECUTE</button>
+                </div>
+                <textarea id="cypherInput" rows="3">MATCH (start:Host {zone: 'DMZ'}), (target:Host {zone: 'CORE_MATRIX'}) MATCH p = shortestPath((start)-[*]->(target)) RETURN p</textarea>
+                <div class="cypher-output" id="cypherOutput">Cypher graph query engine ready. Exec time: &lt;50μs.</div>
+            </div>
+
+            <div class="sidebar-panel bus-panel">
+                <div class="panel-header">
+                    <span>📡 SUB-MS INTER-AGENT IPC FEED</span>
+                    <span class="badge" id="packetCountBadge">0 PKTS</span>
+                </div>
+                <div class="bus-stream" id="busStream"></div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Bottom Command Injection Bar -->
+    <footer class="hud-footer">
+        <div class="cli-prompt-wrap">
+            <span class="prompt-symbol">REDOPS-AI://&gt;</span>
+            <select id="targetAgentSelect" class="agent-select">
+                <option value="OVERLORD-PRIME">👑 OVERLORD-PRIME (Commander)</option>
+                <option value="SPECTRE-RECON">🛰️ SPECTRE-RECON (Surface Hunter)</option>
+                <option value="NEXUS-CYPHER">🧬 NEXUS-CYPHER (Graph Engine)</option>
+                <option value="VORTEX-EXPLOIT">⚡ VORTEX-EXPLOIT (Vuln Synthesizer)</option>
+                <option value="CIPHER-MORPH">🛡️ CIPHER-MORPH (Evasion Core)</option>
+                <option value="CHRONO-DEBRIEF">📊 CHRONO-DEBRIEF (Intel Architect)</option>
+            </select>
+            <input type="text" id="commandInput" class="cli-input" placeholder="Inject custom tactical directive or mission parameters (e.g. 'probe 10.0.9.99' or 'start mission')...">
+            <button class="hud-btn primary" id="sendCommandBtn">TRANSMIT DIRECTIVE</button>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="/static/js/audio.js"></script>
+    <script src="/static/js/graph.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
