@@ -30,6 +30,8 @@ from backend.evidence_engine import evidence_engine
 from backend.strategy_memory import strategy_memory
 from backend.defense_engine import defense_engine, ai_vs_ai_campaign, DetectionRule
 from backend.benchmark_engine import benchmark_engine
+from backend.sandbox_engine import sandbox_manager
+from backend.skills_engine import skills_engine
 
 
 def _register_gateway_tools():
@@ -447,6 +449,88 @@ async def get_benchmark_report():
 @app.get("/api/benchmark/history")
 async def get_benchmark_trend(limit: int = 20):
     return {"trend": benchmark_engine.trend(limit)}
+
+
+# ====================================================================
+# OMEGA: SANDBOX ARCHITECTURE (DRY-RUN VALIDATION LABS)
+# ====================================================================
+class SandboxDryRunRequest(BaseModel):
+    payload: str
+    name: str = "payload"
+
+
+class SandboxRehearsalRequest(BaseModel):
+    seed_node: str
+
+
+@app.post("/api/sandbox/dry-run")
+async def sandbox_dry_run(req: SandboxDryRunRequest):
+    return sandbox_manager.dry_run_exploit(req.payload, req.name).model_dump()
+
+
+@app.post("/api/sandbox/rehearse")
+async def sandbox_rehearse(req: SandboxRehearsalRequest):
+    return sandbox_manager.rehearse_attack_chain(req.seed_node).model_dump()
+
+
+@app.post("/api/sandbox/client-payload")
+async def sandbox_client_payload(req: SandboxDryRunRequest):
+    return sandbox_manager.evaluate_client_payload(req.payload, req.name).model_dump()
+
+
+@app.get("/api/sandbox/stats")
+async def sandbox_stats():
+    return sandbox_manager.get_stats()
+
+
+# ====================================================================
+# OMEGA: MCP INTEGRATION (MODEL CONTEXT PROTOCOL BRIDGE)
+# External LLM orchestrators / IDEs consume the World Model, playbook
+# index and sandbox validation through these standard endpoints.
+# ====================================================================
+class McpSandboxValidateRequest(BaseModel):
+    payload: str
+    tier: str = "CONTAINER_LAB"
+
+
+@app.get("/mcp/world-model")
+async def mcp_world_model():
+    return {
+        "protocol": "MCP",
+        "resource": "redops://world-model",
+        "graph": graph_engine.get_full_graph_state(),
+        "evidence": evidence_engine.get_state_summary(),
+    }
+
+
+@app.get("/mcp/skills")
+async def mcp_skills_index(q: str = "", limit: int = 15):
+    if q:
+        return {"protocol": "MCP", "resource": "redops://skills",
+                "results": skills_engine.search_skills(q, limit)}
+    return {"protocol": "MCP", "resource": "redops://skills",
+            "summary": skills_engine.get_summary()}
+
+
+@app.get("/mcp/skills/{skill_name}")
+async def mcp_skill_content(skill_name: str):
+    content = skills_engine.read_skill_content(skill_name)
+    if content is None:
+        return {"protocol": "MCP", "status": "NOT_FOUND", "skill": skill_name}
+    return {"protocol": "MCP", "resource": f"redops://skills/{skill_name}",
+            "content": content}
+
+
+@app.post("/mcp/sandbox/validate")
+async def mcp_sandbox_validate(req: McpSandboxValidateRequest):
+    tier = req.tier.upper()
+    if tier == "BROWSER_SANDBOX":
+        result = sandbox_manager.evaluate_client_payload(req.payload)
+    elif tier == "VIRTUALIZED_LAB":
+        result = sandbox_manager.rehearse_attack_chain(req.payload)
+    else:
+        result = sandbox_manager.dry_run_exploit(req.payload)
+    return {"protocol": "MCP", "tool": "sandbox.validate", "result": result.model_dump()}
 
 
 # ====================================================================

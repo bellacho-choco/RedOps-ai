@@ -63,17 +63,23 @@ Six new governed engines now sit between the swarm and the outside world
 | **Strategy Memory** | `backend/strategy_memory.py` | 3-tier memory: session deque, campaign KV, regression-gated long-term lessons |
 | **AI-vs-AI Defense** | `backend/defense_engine.py` | Blue-team sigma-style ruleset + Shannon-entropy anomaly inspection; red-vs-blue simulation campaigns with mutation escalation, blind-spot flagging & remediation synthesis |
 | **Benchmarking** | `backend/benchmark_engine.py` | Continuous evaluation: attack / accuracy / safety metric families + composite S–D grade + trend history |
+| **Sandbox Labs** | `backend/sandbox_engine.py` | 3-tier non-destructive validation: container exploit dry-runs, virtualized AD chain rehearsal on the World Model, browser client-payload static evaluation |
+| **GDT Orchestration** | `backend/agents.py` | OVERLORD-PRIME executes missions as Goal Dependency Trees — every goal under circuit breaker, every scan routed through the governed Tool Gateway |
 
 **OMEGA REST APIs** (server `3.0.0-OMEGA`):
 `/api/mission/launch|state|abort`, `/api/gateway/token|execute|audit`,
 `/api/policy/evaluate|approvals|approve|reject`, `/api/attack-paths`,
 `/api/simulate/counterfactual`, `/api/evidence/finding|attach|contradict|state`,
 `/api/memory/stats|outcome|lessons`, `/api/defense/rules|inspect`,
-`/api/simulate/ai-vs-ai`, `/api/benchmark/report|history`
+`/api/simulate/ai-vs-ai`, `/api/benchmark/report|history`,
+`/api/sandbox/dry-run|rehearse|client-payload|stats`
+
+**MCP Bridge** (Model Context Protocol, Section 7):
+`/mcp/world-model`, `/mcp/skills`, `/mcp/skills/{name}`, `/mcp/sandbox/validate`
 
 **Engine tests:**
 ```bash
-python -m pytest tests/ -v   # 21 integration tests (Phase I + Phase 3)
+python -m pytest tests/ -v   # 26 integration tests (all phases)
 ```
 
 ---
