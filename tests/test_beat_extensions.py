@@ -1,5 +1,5 @@
 """
-REDOPS-OMEGA Decepticon-beat tests: real container execution, signed
+REDOPS-OMEGA Satellite-beat tests: real container execution, signed
 engagement package, vaccine loop, hybrid graph, intel cache, sonic
 dispatch, fresh-context isolation, dual-axis benchmark.
 """

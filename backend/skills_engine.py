@@ -140,7 +140,7 @@ class RedOpsSkillEngine:
             cat = skill.category.lower()
 
             # 1. OVERLORD-PRIME: Orchestration, RoE, CONOPS, Threat Profiles
-            if cat in ["soundwave", "decepticon", "orchestration", "benchmark"] or "opplan" in name:
+            if cat in ["soundwave", "satellite", "orchestration", "benchmark"] or "opplan" in name:
                 self.agent_skill_mapping["OVERLORD-PRIME"].append(skill.name)
 
             # 2. SPECTRE-RECON: Surface discovery, OSINT, Recon, Wireless, Cloud, IoT

@@ -43,11 +43,11 @@ Missions inside REDOPS-Ω are not represented by simple text prompts, but by str
 ```json
 {
   "mission_id": "ops-omega-2026-0823",
-  "name": "Project Decepticon Continuous Assessment",
+  "name": "Project Satellite Continuous Assessment",
   "target_scope": {
     "networks": ["10.0.0.0/16"],
-    "domains": ["*.decepticon.internal"],
-    "exclusions": ["10.0.99.0/24", "production-db-01.decepticon.internal"]
+    "domains": ["*.satellite.internal"],
+    "exclusions": ["10.0.99.0/24", "production-db-01.satellite.internal"]
   },
   "rules_of_engagement": {
     "max_qps": 50,
@@ -326,7 +326,7 @@ These playbooks cover major technology layers and are assigned dynamically to th
 * **Cloud Infrastructure (`skills/standard/cloud`):** Playbooks covering AWS IAM enumeration, IAM role trust abuse, Azure managed identity compromise, and Container escape vectors.
 * **Web Security & API Exploitation (`skills/standard/exploit`):** Automated AST analysis recipes, OWASP Top 10 vulnerabilities, unauthorized GraphQL endpoints, and Web3 smart contract vulnerabilities.
 * **Evasion Heuristics & Obfuscation (`skills/standard/reverser`):** Dynamic instrumentation recipes, Android IL2CPP disassembly, dynamic library fuzzing, and evasion logic.
-* **Advanced Adversarial Techniques (`skills/standard/decepticon`):** Multi-stage coordinated deception, agentic prompt injection, and lateral privilege exploitation.
+* **Advanced Adversarial Techniques (`skills/standard/satellite`):** Multi-stage coordinated deception, agentic prompt injection, and lateral privilege exploitation.
 
 ---
 *Blueprint validated and compiled under REDOPS-Ω project workspace.*  

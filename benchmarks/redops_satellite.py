@@ -2,12 +2,12 @@
 """
 ====================================================================
 REDOPS-OMEGA DUAL-AXIS BENCHMARK SATELLITE (PROVE track)
-Decepticon-as-a-service mode for authorized outside sites: launches a
+Satellite-as-a-service mode for authorized outside sites: launches a
 mission via REST, consumes the GDT frontier via parallel dispatch, and
 captures AttackAccuracy + SafetyCompliance axes.
 
 Usage:
-  python benchmarks/decepticon_satellite.py \
+  python benchmarks/satellite_satellite.py \
       --base-url http://localhost:12000 \
       --target example.com --networks 93.184.216.34/32
 ====================================================================

@@ -83,7 +83,7 @@ Six new governed engines now sit between the swarm and the outside world
 | **Batch Recon + Caching** | `backend/live_scanner.py` | Per-host recon streams + Cymru-style TTL cache |
 | **Signed Engagement Package** | `backend/mission_engine.py` | RoE/ConOps/OPPLAN + MITRE mapping, HMAC-sealed |
 
-**Decepticon-beat APIs**:
+**Satellite-beat APIs**:
 `/api/vaccine/run|report|status/{id}`, `/api/intel/research|cache`,
 `/api/sandbox/session/open|input|close`, `/api/mission/package|package/verify`,
 `/api/gdt/parallel_dispatch`, `/api/recon/batch`.
@@ -192,3 +192,9 @@ RedOps-ai/
 
 ## 📜 License
 MIT License.
+
+## NEXT-PHASE SATELLITES
+
+- /api/plugins governed marketplace (publish/install/trust gating)
+- /api/gsi/score composite global security index (0-100)
+- /api/wizard/preflight go/no-go preflight for sandbox/intel/audit ledger
