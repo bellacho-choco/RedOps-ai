@@ -39,6 +39,7 @@ RUN pip install --no-cache-dir \
     prompt_toolkit \
     cython \
     setuptools \
+    dnspython \
     httpx
 
 # Copy source code and skills ecosystem

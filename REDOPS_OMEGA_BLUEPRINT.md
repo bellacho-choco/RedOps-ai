@@ -318,7 +318,7 @@ REDOPS-Ω includes a dedicated continuous-evaluation pipeline under the `skills/
 ---
 
 ## 16. Existing Skills & Playbooks Reference
-REDOPS-Ω is backed by **315 highly specialized, indexed security skills** stored as markdown playbooks (`C:\Users\nandk\Decepticon\skills`).
+REDOPS-Ω is backed by **317 highly specialized, indexed security skills** stored as markdown playbooks under `skills/` (with `.agents/skills/` also indexed).
 
 These playbooks cover major technology layers and are assigned dynamically to the six hero agents:
 

@@ -48,6 +48,50 @@
 
 ---
 
+## Ω REDOPS-OMEGA Layer (Phase I Implemented)
+
+Six new governed engines now sit between the swarm and the outside world
+(see `REDOPS_OMEGA_BLUEPRINT.md` for the full specification):
+
+| Engine | File | Capability |
+| :--- | :--- | :--- |
+| **Mission & Goal System** | `backend/mission_engine.py` | Mission Manifests, Goal Dependency Trees (DAG), cycle detection, 3-strike circuit breaker |
+| **Policy & Authorization** | `backend/policy_engine.py` | Hazardous payload classification, MITRE high-impact gates, HMAC capability tokens, human approval tickets |
+| **Tool Gateway** | `backend/tool_gateway.py` | Post-DNS scope enforcement, RoE QPS/hour limits, hash-chained tamper-evident audit ledger |
+| **Attack-Path Engine** | `backend/attack_path_engine.py` | Kill-chain enumeration + Path Scoring (Likelihood × Exploitability × Privilege Gain × Criticality × Blast Radius) + Counterfactual IF→THEN simulator |
+| **Evidence & Validation** | `backend/evidence_engine.py` | SHA-256 evidence tokens, confidence scoring, false-positive downgrade, auto repro scripts |
+| **Strategy Memory** | `backend/strategy_memory.py` | 3-tier memory: session deque, campaign KV, regression-gated long-term lessons |
+| **AI-vs-AI Defense** | `backend/defense_engine.py` | Blue-team sigma-style ruleset + Shannon-entropy anomaly inspection; red-vs-blue simulation campaigns with mutation escalation, blind-spot flagging & remediation synthesis |
+| **Benchmarking** | `backend/benchmark_engine.py` | Continuous evaluation: attack / accuracy / safety metric families + composite S–D grade + trend history |
+| **Sandbox Labs** | `backend/sandbox_engine.py` | 3-tier non-destructive validation: container exploit dry-runs, virtualized AD chain rehearsal on the World Model, browser client-payload static evaluation + distributed grid registry |
+| **GDT Orchestration** | `backend/agents.py` | OVERLORD-PRIME executes missions as Goal Dependency Trees — every goal under circuit breaker, every scan routed through the governed Tool Gateway |
+| **Vector Memory** (Phase II) | `backend/vector_memory.py` | Deterministic token+bigram+trigram embeddings, cosine semantic recall, atomic disk persistence — lessons survive restarts and are found by meaning |
+| **Mission Persistence** (Phase II) | `backend/mission_engine.py` | Snapshot/restore of manifests + GDT states; restored ACTIVE missions downgrade to INTERRUPTED (never silently resume) |
+| **Self-Healing** (Phase III) | `backend/self_healing_engine.py` | SAST findings → synthesized patch drafts (parameterized SQL, eval dispatch, env-sourced secrets) → evidence anchoring → regression-gated lessons |
+| **Federated Exchange** (Phase III) | `backend/federated_exchange.py` | Cross-grid lesson sharing: IP/host/credential anonymization + HMAC-signed packs; imports verified & quarantined until local regression |
+| **Cognition Daemon** (Phase IV) | `backend/cognition_daemon.py` | Continuous adversarial reasoning loop: World-Model fingerprint drift detection, counterfactual forecasting, finding revalidation, OBSERVE/REASSESS/ALERT directives |
+
+**OMEGA REST APIs** (server `3.0.0-OMEGA`):
+`/api/mission/launch|state|abort`, `/api/gateway/token|execute|audit`,
+`/api/policy/evaluate|approvals|approve|reject`, `/api/attack-paths`,
+`/api/simulate/counterfactual`, `/api/evidence/finding|attach|contradict|state`,
+`/api/memory/stats|outcome|lessons`, `/api/defense/rules|inspect`,
+`/api/simulate/ai-vs-ai`, `/api/benchmark/report|history`,
+`/api/sandbox/dry-run|rehearse|client-payload|stats|grid|grid/register`,
+`/api/memory/vector/recall|stats`, `/api/mission/snapshot|restore`,
+`/api/heal/scan|status|stats`, `/api/federation/export|import|stats`,
+`/api/cognition/start|stop|cycle|state`
+
+**MCP Bridge** (Model Context Protocol, Section 7):
+`/mcp/world-model`, `/mcp/skills`, `/mcp/skills/{name}`, `/mcp/sandbox/validate`
+
+**Engine tests:**
+```bash
+python -m pytest tests/ -v   # 36 integration tests (all phases I–IV)
+```
+
+---
+
 ## 🐳 Quick Start with Docker
 
 ```bash
@@ -73,7 +117,7 @@ docker compose run --rm redops-cli
 ```bash
 git clone https://github.com/bellacho-choco/RedOps-ai.git
 cd RedOps-ai
-pip install fastapi uvicorn websockets pydantic rich prompt_toolkit httpx
+pip install fastapi uvicorn websockets pydantic rich prompt_toolkit httpx dnspython
 ```
 
 ### Running Modes

@@ -32,9 +32,13 @@ class RedOpsSkillEngine:
     """
     Indexes and maps all 316+ security skills in the workspace to the 6 Agent Heroes.
     """
+    GROUPING_DIRS = {"standard", "plugins", "shared"}
+
     def __init__(self, workspace_root: Optional[str] = None):
         self.workspace_root = workspace_root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # Keyed by unique relative path; name_index maps display name -> registry key
         self.skills: Dict[str, SkillEntry] = {}
+        self.name_index: Dict[str, str] = {}
         self.agent_skill_mapping: Dict[str, List[str]] = {
             "OVERLORD-PRIME": [],
             "SPECTRE-RECON": [],
@@ -74,11 +78,21 @@ class RedOpsSkillEngine:
             rel_path = os.path.relpath(file_path, self.workspace_root)
             parts = rel_path.replace("\\", "/").split("/")
 
-            # Determine category and name
-            category = parts[1] if len(parts) > 1 else "general"
-            if category == "standard" and len(parts) > 2:
-                category = parts[2]
-            
+            # Strip the leading root ('skills/...' or '.agents/skills/...'),
+            # then unwrap grouping dirs (standard/plugins/shared) so the
+            # category is the actual skill domain (e.g. 'verifier', 'ad').
+            if parts[0] == ".agents":
+                parts = parts[2:]
+            else:
+                parts = parts[1:]
+            parts = [p for p in parts if p]
+            if parts and parts[0] in self.GROUPING_DIRS and len(parts) > 2:
+                category = parts[1]
+            elif parts:
+                category = parts[0]
+            else:
+                category = "general"
+
             # Default name from folder or frontmatter
             folder_name = os.path.basename(os.path.dirname(file_path))
             skill_name = folder_name if folder_name != "skills" else category
@@ -108,7 +122,11 @@ class RedOpsSkillEngine:
                 description=description,
                 tags=list(set(tags))
             )
-            self.skills[skill_name.lower()] = entry
+            key = rel_path.replace("\\", "/").lower()
+            self.skills[key] = entry
+            # First registration wins for name lookup; duplicates stay
+            # reachable via their unique path key.
+            self.name_index.setdefault(skill_name.lower(), key)
 
         except Exception as e:
             pass
@@ -117,11 +135,12 @@ class RedOpsSkillEngine:
         """
         Maps indexed skills to each hero's domain specialization.
         """
-        for name, skill in self.skills.items():
+        for skill in self.skills.values():
+            name = skill.name.lower()
             cat = skill.category.lower()
-            
+
             # 1. OVERLORD-PRIME: Orchestration, RoE, CONOPS, Threat Profiles
-            if cat in ["soundwave", "decepticon", "orchestration"] or "opplan" in name:
+            if cat in ["soundwave", "decepticon", "orchestration", "benchmark"] or "opplan" in name:
                 self.agent_skill_mapping["OVERLORD-PRIME"].append(skill.name)
 
             # 2. SPECTRE-RECON: Surface discovery, OSINT, Recon, Wireless, Cloud, IoT
@@ -133,15 +152,19 @@ class RedOpsSkillEngine:
                 self.agent_skill_mapping["NEXUS-CYPHER"].append(skill.name)
 
             # 4. VORTEX-EXPLOIT: Web exploits, API, Contracts, MPC, Vulnresearch, Detector
-            elif cat in ["exploit", "analyst", "contracts", "detector", "vulnresearch", "web", "api", "ics"]:
+            elif cat in ["exploit", "analyst", "contracts", "detector", "vulnresearch",
+                         "exploiter", "web", "api", "ics", "mpc-cryptography-audit"]:
                 self.agent_skill_mapping["VORTEX-EXPLOIT"].append(skill.name)
 
             # 5. CIPHER-MORPH: Evasion, Reversing, Malware triage, C2, Phisher, LLM-Redteam
-            elif cat in ["reverser", "c2", "post-exploit", "phisher", "llm-redteam", "mobile"]:
+            elif cat in ["reverser", "c2", "post-exploit", "phisher", "llm-redteam",
+                         "mobile", "opsec", "stealth-infra", "defense-evasion",
+                         "adversary-emulation"]:
                 self.agent_skill_mapping["CIPHER-MORPH"].append(skill.name)
 
-            # 6. CHRONO-DEBRIEF: DFIR, Reporting, Mitigation, Patching
-            elif cat in ["dfir", "reporting", "patcher", "verifier"] or "report" in name or "cleanup" in name:
+            # 6. CHRONO-DEBRIEF: DFIR, Reporting, Mitigation, Patching, Validation
+            elif cat in ["dfir", "reporting", "patcher", "verifier", "finding-protocol",
+                         "references"] or "report" in name or "cleanup" in name:
                 self.agent_skill_mapping["CHRONO-DEBRIEF"].append(skill.name)
 
             else:
@@ -151,8 +174,8 @@ class RedOpsSkillEngine:
     def search_skills(self, query: str, limit: int = 15) -> List[Dict[str, Any]]:
         q = query.lower()
         results = []
-        for name, skill in self.skills.items():
-            if q in name or q in skill.description.lower() or any(q in t.lower() for t in skill.tags):
+        for skill in self.skills.values():
+            if q in skill.name.lower() or q in skill.description.lower() or any(q in t.lower() for t in skill.tags):
                 results.append(skill.to_dict())
                 if len(results) >= limit:
                     break
@@ -162,13 +185,20 @@ class RedOpsSkillEngine:
         return self.agent_skill_mapping.get(agent_name.upper(), [])
 
     def read_skill_content(self, skill_name: str) -> Optional[str]:
-        skill = self.skills.get(skill_name.lower())
+        key = self.name_index.get(skill_name.lower())
+        skill = self.skills.get(key) if key else None
         if not skill:
-            # Try fuzzy search
-            for k, v in self.skills.items():
-                if skill_name.lower() in k:
-                    skill = v
+            # Try fuzzy search on names, then on path keys
+            q = skill_name.lower()
+            for name, k in self.name_index.items():
+                if q in name:
+                    skill = self.skills[k]
                     break
+            else:
+                for k, v in self.skills.items():
+                    if q in k:
+                        skill = v
+                        break
         if not skill:
             return None
 
