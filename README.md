@@ -198,3 +198,8 @@ MIT License.
 - /api/plugins governed marketplace (publish/install/trust gating)
 - /api/gsi/score composite global security index (0-100)
 - /api/wizard/preflight go/no-go preflight for sandbox/intel/audit ledger
+
+## EVOLUTION ENGINE (SELF-IMPROVEMENT)
+
+- `/api/evolution/cycle` posture -> weak axis -> vaccine cycles -> lessons -> re-score (ADVANCE/HOLD/REGRESS)
+- `/api/evolution/report` loop history + GSI trend

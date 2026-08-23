@@ -43,6 +43,7 @@ from backend.parallel_dispatch import parallel_dispatcher
 from backend.plugin_market import plugin_market, PluginBundle
 from backend.gsi_engine import gsi_engine
 from backend.deployment_wizard import deployment_wizard
+from backend.evolution_engine import evolution_engine
 
 
 def _register_gateway_tools():
@@ -833,6 +834,18 @@ async def gsi_trend():
 @app.get("/api/wizard/preflight")
 async def wizard_preflight():
     return deployment_wizard.run_preflight().model_dump()
+
+
+# EVOLUTION ENGINE: continuous self-improvement (posture -> vaccine -> lessons -> re-score)
+@app.post("/api/evolution/cycle")
+async def evolution_cycle():
+    return evolution_engine.run().model_dump()
+
+
+@app.get("/api/evolution/report")
+async def evolution_report():
+    return evolution_engine.report()
+
 
 
 # ====================================================================
