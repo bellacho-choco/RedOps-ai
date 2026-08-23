@@ -38,6 +38,8 @@ from backend.self_healing_engine import self_healing_engine
 from backend.federated_exchange import federated_exchange
 from backend.cognition_daemon import cognition_daemon
 from backend.vaccine_engine import vaccine_engine
+from backend.intel_engine import intel_engine
+from backend.parallel_dispatch import parallel_dispatcher
 
 
 def _register_gateway_tools():
@@ -709,6 +711,51 @@ async def federation_import(req: FederationImportRequest):
 @app.get("/api/federation/stats")
 async def federation_stats():
     return federated_exchange.get_stats()
+
+
+# ====================================================================
+# BEAT #2: LIVE THREAT RESEARCH ENGINE (Tavily HTTP connector)
+# ====================================================================
+class IntelQueryRequest(BaseModel):
+    query: str
+    depth: str = "basic"
+    max_results: int = 5
+
+
+@app.post("/api/intel/research")
+async def intel_research(req: IntelQueryRequest):
+    return intel_engine.research(req.query, req.depth, req.max_results).model_dump()
+
+
+@app.get("/api/intel/cache")
+async def intel_cache():
+    return intel_engine.get_stats()
+
+
+# ====================================================================
+# BEAT #5: SONIC SPEED LAYER (parallel dispatch, batch recon, caching)
+# ====================================================================
+async def _default_goal_runner(ctx) -> str:
+    """Runner hook: READY lanes run inline against an isolated context."""
+    return f"lane {ctx.goal.get('goal_id')} handled by {ctx.agent}"
+
+
+class BatchReconRequest(BaseModel):
+    targets: List[str]
+    max_concurrent: int = 8
+
+
+@app.post("/api/recon/batch")
+async def recon_batch(req: BatchReconRequest):
+    return await socket_scanner.batch_recon(req.targets, req.max_concurrent)
+
+
+@app.post("/api/gdt/parallel_dispatch")
+async def gdt_parallel_dispatch():
+    lanes = await parallel_dispatcher.dispatch(_default_goal_runner)
+    return {"dispatched": [l.model_dump() for l in lanes],
+            "frontier_done": mission_engine.get_active().gdt.to_dict()
+            if mission_engine.get_active() else None}
 
 
 # ====================================================================

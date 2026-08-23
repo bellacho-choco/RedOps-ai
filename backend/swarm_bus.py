@@ -81,6 +81,29 @@ class SwarmMessageBus:
 
         return latency_ms
 
+    async def publish_batch(self, msgs: List[AgentMessage]) -> float:
+        """Sonic batch dispatch (BEAT #5): one lock acquisition per batch
+        instead of one per message — amortizes serialization on fan-out."""
+        started = time.time_ns()
+        async with self._lock:
+            self.history.extend(msgs)
+            self.total_messages += len(msgs)
+        for msg in msgs:
+            targets = []
+            if msg.target_agent in ("BROADCAST", "*"):
+                for q_list in self.subscribers.values():
+                    targets.extend(q_list)
+            else:
+                targets.extend(self.subscribers.get(msg.target_agent, []))
+                targets.extend(self.subscribers.get("MONITOR", []))
+            for q in targets:
+                try:
+                    q.put_nowait(msg)
+                except asyncio.QueueFull:
+                    pass
+        self.total_latency_ns += time.time_ns() - started
+        return round((time.time_ns() - started) / 1_000_000.0, 4)
+
     def get_telemetry(self) -> Dict[str, Any]:
         """
         Returns real-time performance telemetry.

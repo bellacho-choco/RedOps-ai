@@ -76,11 +76,23 @@ class AsyncSocketScanner:
         except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
             return None
 
+    # Cymru-style TTL cache (BEAT #5): repeated target hits collapse into
+    # cached_data, collateral probe traffic is amortized to zero.
+    CACHE_TTL_S = 30.0
+
+    def __init__(self):
+        self._cache: Dict[str, Dict[str, Any]] = {}
+
     async def scan_target(self, target: str, ports: Optional[List[int]] = None, concurrency: int = 50) -> Dict[str, Any]:
         """
         Scans all specified ports on a target host concurrently.
         """
         ports_to_scan = ports or self.COMMON_PORTS
+        cache_key = f"{target}|{sorted(ports_to_scan)}"
+        hit = self._cache.get(cache_key)
+        if hit and time.time() - hit["cached_at"] < self.CACHE_TTL_S:
+            return {**hit, "cached": True,
+                    "cache_age_s": round(time.time() - hit["cached_at"], 2)}
 
         # Resolve hostname to IP
         try:
@@ -101,13 +113,32 @@ class AsyncSocketScanner:
 
         open_ports = [r for r in results if r is not None]
 
-        return {
+        report = {
             "target": target,
             "ip": resolved_ip,
             "total_probed": len(ports_to_scan),
             "open_ports_count": len(open_ports),
             "open_ports": open_ports,
-            "scan_duration_s": scan_duration_s
+            "scan_duration_s": scan_duration_s,
+            "cached": False,
+        }
+        self._cache[cache_key] = {**report, "cached_at": time.time()}
+        return report
+
+    async def batch_recon(self, targets: List[str], max_concurrent: int = 8) -> Dict[str, Any]:
+        """Fan-out one recon stream per host (BEAT #5 batch-layer)."""
+        sem = asyncio.Semaphore(max_concurrent)
+
+        async def _one(t: str):
+            async with sem:
+                return await self.scan_target(t)
+
+        started = time.perf_counter()
+        scans = await asyncio.gather(*[_one(t) for t in targets])
+        return {
+            "batch_count": len(scans),
+            "elapsed_s": round(time.perf_counter() - started, 3),
+            "scans": scans,
         }
 
 
