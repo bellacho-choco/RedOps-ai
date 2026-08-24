@@ -1673,3 +1673,14 @@ async def serve_index():
     if os.path.exists(index_file):
         return FileResponse(index_file)
     return HTMLResponse("<h1>PROJECT REDOPS-AI</h1><p>Initializing HUD interface...</p>")
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def serve_favicon():
+    fav = os.path.join(STATIC_DIR, "favicon.ico")
+    if os.path.exists(fav):
+        return FileResponse(fav)
+    return HTMLResponse(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚡</text></svg>',
+        media_type="image/svg+xml"
+    )
+
