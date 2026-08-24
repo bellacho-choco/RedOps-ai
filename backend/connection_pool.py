@@ -136,11 +136,19 @@ class ConnectionPoolManager:
             max_keepalive_connections=max_keepalive_connections
         )
         
+        # Dynamically detect HTTP/2 support
+        http2_supported = False
+        try:
+            import h2  # noqa: F401
+            http2_supported = True
+        except ImportError:
+            http2_supported = False
+
         # Create async client with connection pooling
         self.client = httpx.AsyncClient(
             limits=self.limits,
             timeout=httpx.Timeout(30.0, connect=10.0),
-            http2=True,  # Enable HTTP/2 for better performance
+            http2=http2_supported,
             verify=True  # SSL verification
         )
     

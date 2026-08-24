@@ -81,9 +81,9 @@ class Task:
     description: str
     status: str  # TODO, IN_PROGRESS, REVIEW, DONE
     priority: str  # LOW, MEDIUM, HIGH, CRITICAL
-    assigned_to: Optional[str] = None
     created_by: str
     created_at: float
+    assigned_to: Optional[str] = None
     due_date: Optional[float] = None
     tags: List[str] = field(default_factory=list)
     related_mission: Optional[str] = None
