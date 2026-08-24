@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REDOPS-AI | Modern Security Operations Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/modern-hud.css">
+</head>
+<body>
+    <!-- Modern Header -->
+    <header class="modern-header">
+        <div class="header-brand">
+            <div class="brand-logo">REDOPS-AI</div>
+            <div class="brand-badge">SECURITY OPERATIONS CENTER</div>
+        </div>
+        <nav class="header-nav">
+            <a href="#" class="nav-item active">Dashboard</a>
+            <a href="#" class="nav-item">Missions</a>
+            <a href="#" class="nav-item">Analytics</a>
+            <a href="#" class="nav-item">Settings</a>
+        </nav>
+        <div class="header-actions">
+            <button class="btn btn-icon" title="Notifications">
+                🔔
+            </button>
+            <button class="btn btn-primary" id="deployMissionBtn">
+                🚀 Deploy Mission
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+        <!-- Left Column - Dashboard -->
+        <div class="dashboard-content">
+            <!-- Stats Overview -->
+            <div class="card" style="margin-bottom: var(--spacing-lg);">
+                <div class="card-header">
+                    <h2 class="card-title">System Overview</h2>
+                    <div class="card-subtitle">Real-time metrics</div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="activeMissions">3</div>
+                        <div class="stat-label">Active Missions</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalAgents">6</div>
+                        <div class="stat-label">Active Agents</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="scanCount">1,247</div>
+                        <div class="stat-label">Scans Completed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="threatScore">A+</div>
+                        <div class="stat-label">Security Score</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Grid -->
+            <div class="dashboard-grid">
+                <!-- OVERLORD-PRIME -->
+                <div class="agent-card">
+                    <div class="agent-header">
+                        <div class="agent-icon">👑</div>
+                        <div class="agent-info">
+                            <h3>OVERLORD-PRIME</h3>
+                            <p>Mission Commander</p>
+                        </div>
+                        <div class="agent-status online">● Online</div>
+                    </div>
+                    <div class="terminal-logs" id="logs-OVERLORD-PRIME">
+                        <div class="log-entry">
+                            <span class="log-time">14:32:15</span>
+                            <span class="log-message info">System initialized successfully</span>
+                        </div>
+                        <div class="log-entry">
+                            <span class="log-time">14:32:20</span>
+                            <span class="log-message">Awaiting mission directives</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-secondary" onclick="taskAgent('OVERLORD-PRIME')">Send Directive</button>
+                        <button class="btn btn-icon">⚙️</button>
+                    </div>
+                </div>
+
+                <!-- SPECTRE-RECON -->
+                <div class="agent-card">
+                    <div class="agent-header">
+                        <div class="agent-icon">🛰️</div>
+                        <div class="agent-info">
+                            <h3>SPECTRE-RECON</h3>
+                            <p>Surface Hunter</p>
+                        </div>
+                        <div class="agent-status online">● Online</div>
+                    </div>
+                    <div class="terminal-logs" id="logs-SPECTRE-RECON">
+                        <div class="log-entry">
+                            <span class="log-time">14:32:18</span>
+                            <span class="log-message success">Scan completed: 192.168.1.1</span>
+                        </div>
+                        <div class="log-entry">
+                            <span class="log-time">14:32:25</span>
+                            <span class="log-message">5 open ports discovered</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-secondary" onclick="taskAgent('SPECTRE-RECON')">Send Directive</button>
+                        <button class="btn btn-icon">⚙️</button>
+                    </div>
+                </div>
+
+                <!-- NEXUS-CYPHER -->
+                <div class="agent-card">
+                    <div class="agent-header">
+                        <div class="agent-icon">🧬</div>
+                        <div class="agent-info">
+                            <h3>NEXUS-CYPHER</h3>
+                            <p>Graph Engine</p>
+                        </div>
+                        <div class="agent-status busy">● Processing</div>
+                    </div>
+                    <div class="terminal-logs" id="logs-NEXUS-CYPHER">
+                        <div class="log-entry">
+                            <span class="log-time">14:32:22</span>
+                            <span class="log-message">Building attack graph topology</span>
+                        </div>
+                        <div class="log-entry">
+                            <span class="log-time">14:32:28</span>
+                            <span class="log-message warning">Critical path identified</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-secondary" onclick="taskAgent('NEXUS-CYPHER')">Send Directive</button>
+                        <button class="btn btn-icon">⚙️</button>
+                    </div>
+                </div>
+
+                <!-- VORTEX-EXPLOIT -->
+                <div class="agent-card">
+                    <div class="agent-header">
+                        <div class="agent-icon">⚡</div>
+                        <div class="agent-info">
+                            <h3>VORTEX-EXPLOIT</h3>
+                            <p>Vulnerability Scanner</p>
+                        </div>
+                        <div class="agent-status online">● Online</div>
+                    </div>
+                    <div class="terminal-logs" id="logs-VORTEX-EXPLOIT">
+                        <div class="log-entry">
+                            <span class="log-time">14:32:30</span>
+                            <span class="log-message">AST analysis in progress</span>
+                        </div>
+                        <div class="log-entry">
+                            <span class="log-time">14:32:35</span>
+                            <span class="log-message">No critical vulnerabilities found</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-secondary" onclick="taskAgent('VORTEX-EXPLOIT')">Send Directive</button>
+                        <button class="btn btn-icon">⚙️</button>
+                    </div>
+                </div>
+
+                <!-- CIPHER-MORPH -->
+                <div class="agent-card">
+                    <div class="agent-header">
+                        <div class="agent-icon">🛡️</div>
+                        <div class="agent-info">
+                            <h3>CIPHER-MORPH</h3>
+                            <p>Evasion Specialist</p>
+                        </div>
+                        <div class="agent-status online">● Online</div>
+                    </div>
+                    <div class="terminal-logs" id="logs-CIPHER-MORPH">
+                        <div class="log-entry">
+                            <span class="log-time">14:32:40</span>
+                            <span class="log-message">Entropy analysis complete</span>
+                        </div>
+                        <div class="log-entry">
+                            <span class="log-time">14:32:45</span>
+                            <span class="log-message">Polymorphic payload ready</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-secondary" onclick="taskAgent('CIPHER-MORPH')">Send Directive</button>
+                        <button class="btn btn-icon">⚙️</button>
+                    </div>
+                </div>
+
+                <!-- CHRONO-DEBRIEF -->
+                <div class="agent-card">
+                    <div class="agent-header">
+                        <div class="agent-icon">📊</div>
+                        <div class="agent-info">
+                            <h3>CHRONO-DEBRIEF</h3>
+                            <p>Intel Architect</p>
+                        </div>
+                        <div class="agent-status online">● Online</div>
+                    </div>
+                    <div class="terminal-logs" id="logs-CHRONO-DEBRIEF">
+                        <div class="log-entry">
+                            <span class="log-time">14:32:50</span>
+                            <span class="log-message">Generating mitigation report</span>
+                        </div>
+                        <div class="log-entry">
+                            <span class="log-time">14:32:55</span>
+                            <span class="log-message success">Report completed</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-secondary" onclick="taskAgent('CHRONO-DEBRIEF')">Send Directive</button>
+                        <button class="btn btn-icon">⚙️</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <aside class="sidebar">
+            <!-- Attack Graph -->
+            <div class="sidebar-section">
+                <div class="card-header">
+                    <h3 class="card-title">Attack Graph</h3>
+                    <div class="badge badge-primary" id="graphNodesCount">6 Nodes</div>
+                </div>
+                <div class="graph-container">
+                    <canvas id="attackGraphCanvas" class="graph-canvas"></canvas>
+                </div>
+                <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                    <span class="badge badge-success">Clean</span>
+                    <span class="badge badge-warning">Discovered</span>
+                    <span class="badge badge-danger">Compromised</span>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="sidebar-section">
+                <div class="card-header">
+                    <h3 class="card-title">Quick Actions</h3>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                    <button class="btn btn-secondary" onclick="runScan()">🔍 Quick Scan</button>
+                    <button class="btn btn-secondary" onclick="runAudit()">🌐 Security Audit</button>
+                    <button class="btn btn-secondary" onclick="viewGraph()">📊 View Graph</button>
+                    <button class="btn btn-secondary" onclick="generateReport()">📋 Generate Report</button>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="sidebar-section">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Activity</h3>
+                </div>
+                <div class="terminal-logs" id="activityLog">
+                    <div class="log-entry">
+                        <span class="log-time">14:32:00</span>
+                        <span class="log-message">System startup complete</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">14:32:10</span>
+                        <span class="log-message success">All agents online</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">14:32:15</span>
+                        <span class="log-message">Mission alpha-1 deployed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="sidebar-section">
+                <div class="card-header">
+                    <h3 class="card-title">Performance</h3>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                            <span class="stat-label">CPU Usage</span>
+                            <span class="stat-value" style="font-size: 1rem;">34%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 34%;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                            <span class="stat-label">Memory</span>
+                            <span class="stat-value" style="font-size: 1rem;">67%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 67%;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                            <span class="stat-label">Network</span>
+                            <span class="stat-value" style="font-size: 1rem;">12%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 12%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Command Bar -->
+    <footer style="background: var(--card-bg); border-top: 1px solid var(--border-color); padding: var(--spacing-lg) var(--spacing-xl);">
+        <div class="input-group">
+            <select class="modern-select" id="targetAgentSelect">
+                <option value="OVERLORD-PRIME">👑 OVERLORD-PRIME</option>
+                <option value="SPECTRE-RECON">🛰️ SPECTRE-RECON</option>
+                <option value="NEXUS-CYPHER">🧬 NEXUS-CYPHER</option>
+                <option value="VORTEX-EXPLOIT">⚡ VORTEX-EXPLOIT</option>
+                <option value="CIPHER-MORPH">🛡️ CIPHER-MORPH</option>
+                <option value="CHRONO-DEBRIEF">📊 CHRONO-DEBRIEF</option>
+            </select>
+            <input type="text" class="modern-input" id="commandInput" placeholder="Enter command or directive...">
+            <button class="btn btn-primary" id="sendCommandBtn">Execute</button>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="/static/js/audio.js"></script>
+    <script src="/static/js/graph.js"></script>
+    <script src="/static/js/modern-app.js"></script>
+</body>
+</html>

@@ -1,21 +1,25 @@
 /* ====================================================================
-   REDOPS-AI - COCKPIT HUD STYLES
-   Dark Obsidian, Holographic Neon, Scanlines & Glassmorphism
+   REDOPS-AI - ENHANCED COCKPIT HUD STYLES
+   Modern Dark UI, Glassmorphism, Animations & Responsive Design
    ==================================================================== */
 
 :root {
-    --bg-dark: #060913;
-    --bg-card: rgba(12, 18, 33, 0.75);
-    --border-card: rgba(0, 240, 255, 0.25);
+    --bg-dark: #0a0e1a;
+    --bg-card: rgba(15, 23, 42, 0.85);
+    --border-card: rgba(0, 240, 255, 0.3);
     --neon-cyan: #00f0ff;
     --neon-crimson: #ff0055;
     --neon-green: #00ff66;
     --neon-amber: #ff9900;
     --neon-purple: #aa00ff;
-    --text-main: #e2e8f0;
-    --text-dim: #64748b;
+    --neon-blue: #3b82f6;
+    --text-main: #f1f5f9;
+    --text-dim: #94a3b8;
     --font-heading: 'Orbitron', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --shadow-glow: 0 0 20px rgba(0, 240, 255, 0.3);
 }
 
 * {

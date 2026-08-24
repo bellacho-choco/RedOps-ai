@@ -61,28 +61,37 @@ class RequestForge:
         cookies.update(session_engine.jar_for(host))
 
         t0 = time.perf_counter()
-        async with httpx.AsyncClient(
-                timeout=timeout, follow_redirects=follow_redirects,
-                verify=True) as client:
-            resp = await client.request(
-                method.upper(), url, params=params, data=data,
-                json=json_body, headers=merged_headers, cookies=cookies)
-        elapsed = round((time.perf_counter() - t0) * 1000, 2)
-
-        body = resp.text[:MAX_BODY_CAPTURE]
-        set_cookies = {k: v for k, v in resp.cookies.items()}
-        if set_cookies:
-            session_engine.update_jar(host, set_cookies)
+        try:
+            async with httpx.AsyncClient(
+                    timeout=timeout, follow_redirects=follow_redirects,
+                    verify=True, cookies=cookies) as client:
+                resp = await client.request(
+                    method.upper(), url, params=params, data=data,
+                    json=json_body, headers=merged_headers)
+            elapsed = round((time.perf_counter() - t0) * 1000, 2)
+            body = resp.text[:MAX_BODY_CAPTURE]
+            set_cookies = {k: v for k, v in resp.cookies.items()}
+            if set_cookies:
+                session_engine.update_jar(host, set_cookies)
+            status = resp.status_code
+            resp_headers = {k.lower(): v for k, v in resp.headers.items()}
+            resp_url = str(resp.url)
+        except Exception as e:
+            elapsed = round((time.perf_counter() - t0) * 1000, 2)
+            body = f"ERROR: {str(e)}"
+            status = 0
+            resp_headers = {}
+            resp_url = url
 
         record = ResponseRecord(
-            url=str(resp.url), method=method.upper(), status=resp.status_code,
+            url=resp_url, method=method.upper(), status=status,
             elapsed_ms=elapsed, body=body,
-            headers={k.lower(): v for k, v in resp.headers.items()},
+            headers=resp_headers,
             identity=ctx.name if ctx else "unauth",
             request_params={"params": params, "json": json_body, "data": data})
         self.request_log.append({
             "ts": time.time(), "url": url, "method": method.upper(),
-            "identity": record.identity, "status": resp.status_code,
+            "identity": record.identity, "status": status,
             "elapsed_ms": elapsed})
         return record
 

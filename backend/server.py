@@ -52,6 +52,12 @@ from backend.fuzz_engine import fuzz_engine
 from backend.exploit_validator import exploit_validator
 from backend.hunt_engine import hunt_engine
 from backend.payload_corpus import payload_corpus
+from backend.monitoring import monitoring_system, get_health_status
+from backend.resilience import error_handler
+from backend.performance_benchmark import benchmark_suite, run_performance_benchmark
+from backend.user_manager import user_manager, UserRole, Permission
+from backend.team_collaboration import team_collaboration, WorkspaceRole, CommentType
+from backend.enhanced_autonomy import enhanced_autonomy, TaskPriority, TaskStatus, AgentState
 
 
 def _register_gateway_tools():
@@ -141,8 +147,30 @@ _register_gateway_tools()
 
 app = FastAPI(
     title="PROJECT REDOPS-OMEGA - Autonomous Adversarial Security Intelligence",
-    version="3.0.0-OMEGA"
+    version="3.0.0-OMEGA-PERFORMANCE"
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize monitoring and background services on startup."""
+    # Start background monitoring
+    monitoring_system.start_background_monitoring(interval=30.0)
+    
+    # Initialize main logger
+    monitoring_system.get_logger("server")
+    
+    print("🚀 REDOPS-OMEGA Performance Enhanced Server Started")
+    print("📊 Monitoring system initialized")
+    print("🔧 Performance optimizations active")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    from backend.connection_pool import connection_pool
+    await connection_pool.close()
+    print("🛑 REDOPS-OMEGA Server Shutdown Complete")
 
 app.add_middleware(
     CORSMiddleware,
@@ -154,6 +182,19 @@ app.add_middleware(
 
 # Connected WebSocket Clients
 connected_websockets: List[WebSocket] = []
+
+
+# Serve modern interface
+@app.get("/")
+async def serve_modern_interface():
+    """Serve the modern redesigned interface."""
+    return FileResponse("static/modern-index.html")
+
+
+@app.get("/legacy")
+async def serve_legacy_interface():
+    """Serve the legacy interface for compatibility."""
+    return FileResponse("static/index.html")
 
 
 class AgentCommandRequest(BaseModel):
@@ -536,6 +577,483 @@ async def probe_fuzz(req: FuzzRequest):
 async def probe_idor(url: str, identity_a: str = "user_a", identity_b: str = "user_b"):
     signals = await fuzz_engine.idor_check(url, identity_a, identity_b)
     return {"url": url, "signals": [s.__dict__ for s in signals]}
+
+
+# ====================================================================
+# MONITORING & PERFORMANCE ENDPOINTS
+# ====================================================================
+@app.get("/api/monitoring/dashboard")
+async def get_monitoring_dashboard():
+    """Get comprehensive monitoring dashboard data."""
+    return await monitoring_system.get_dashboard_data()
+
+
+@app.get("/api/monitoring/health")
+async def get_system_health():
+    """Get current system health status."""
+    return await get_health_status()
+
+
+@app.get("/api/monitoring/metrics")
+async def get_all_metrics():
+    """Get all current metrics."""
+    return monitoring_system.metrics.get_all_metrics()
+
+
+@app.get("/api/monitoring/metrics/{metric_name}")
+async def get_metric_history(metric_name: str, since: Optional[float] = None, limit: int = 100):
+    """Get historical data for a specific metric."""
+    return monitoring_system.metrics.get_metric_history(metric_name, since, limit)
+
+
+@app.get("/api/monitoring/metrics/{metric_name}/stats")
+async def get_metric_stats(metric_name: str, since: Optional[float] = None):
+    """Get statistical summary for a specific metric."""
+    return monitoring_system.metrics.get_metric_stats(metric_name, since)
+
+
+@app.get("/api/monitoring/performance/{operation}")
+async def get_performance_stats(operation: str):
+    """Get performance statistics for a specific operation."""
+    return monitoring_system.get_performance_stats(operation)
+
+
+@app.get("/api/monitoring/logs")
+async def get_recent_logs(component: Optional[str] = None, limit: int = 50, level: Optional[str] = None):
+    """Get recent log entries."""
+    if component:
+        logger = monitoring_system.get_logger(component)
+        log_level = monitoring_system.loggers.get(component).__class__.__level__ if level else None
+        return logger.get_recent_logs(limit, log_level)
+    else:
+        # Aggregate logs from all components
+        all_logs = []
+        for logger in monitoring_system.loggers.values():
+            all_logs.extend(logger.get_recent_logs(limit // len(monitoring_system.loggers)))
+        return all_logs[:limit]
+
+
+@app.get("/api/monitoring/errors")
+async def get_error_summary():
+    """Get error summary from resilience layer."""
+    return error_handler.get_error_summary()
+
+
+@app.post("/api/monitoring/benchmark/run")
+async def run_benchmarks():
+    """Run complete performance benchmark suite."""
+    return await run_performance_benchmark()
+
+
+@app.get("/api/monitoring/benchmark/results")
+async def get_benchmark_results():
+    """Get benchmark results."""
+    return benchmark_suite.get_summary()
+
+
+@app.post("/api/monitoring/benchmark/{benchmark_name}")
+async def run_single_benchmark(benchmark_name: str):
+    """Run a specific benchmark."""
+    result = await benchmark_suite.run_benchmark(benchmark_name)
+    if result:
+        return result.to_dict()
+    return {"error": f"Benchmark {benchmark_name} not found"}
+
+
+@app.post("/api/monitoring/clear-errors")
+async def clear_error_log():
+    """Clear error log."""
+    error_handler.clear_errors()
+    return {"status": "cleared"}
+
+
+@app.post("/api/monitoring/graph/clear-cache")
+async def clear_graph_cache():
+    """Clear graph engine cache."""
+    from backend.cypher_engine import graph_engine
+    graph_engine.clear_cache()
+    return {"status": "cleared"}
+
+
+@app.get("/api/monitoring/graph/performance")
+async def get_graph_performance():
+    """Get graph engine performance statistics."""
+    from backend.cypher_engine import graph_engine
+    return graph_engine.get_performance_stats()
+
+
+@app.get("/api/monitoring/connection-pool/stats")
+async def get_connection_pool_stats():
+    """Get connection pool statistics."""
+    from backend.connection_pool import connection_pool
+    return await connection_pool.get_stats()
+
+
+# ====================================================================
+# USER MANAGEMENT & AUTHENTICATION
+# ====================================================================
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class CreateUserRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    full_name: str
+    role: UserRole = UserRole.ANALYST
+
+
+class UpdateUserRequest(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: Optional[UserRole] = None
+    password: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+@app.post("/api/auth/login")
+async def login(req: LoginRequest):
+    """Authenticate user and create session"""
+    session = user_manager.authenticate(req.username, req.password)
+    if session:
+        user = user_manager.get_user(session.user_id)
+        return {
+            "status": "SUCCESS",
+            "session_id": session.session_id,
+            "user": user.to_dict()
+        }
+    return {"status": "FAILED", "message": "Invalid credentials"}
+
+
+@app.post("/api/auth/logout")
+async def logout(session_id: str):
+    """Logout user"""
+    user_manager.logout(session_id)
+    return {"status": "SUCCESS"}
+
+
+@app.post("/api/auth/register")
+async def register_user(req: CreateUserRequest):
+    """Register new user (requires admin session)"""
+    # In production, this would require admin authentication
+    try:
+        user = user_manager.create_user(
+            username=req.username,
+            email=req.email,
+            password=req.password,
+            full_name=req.full_name,
+            role=req.role
+        )
+        return {"status": "SUCCESS", "user": user.to_dict()}
+    except ValueError as e:
+        return {"status": "FAILED", "message": str(e)}
+
+
+@app.get("/api/users")
+async def list_users():
+    """List all users (admin only)"""
+    return {"users": user_manager.list_users()}
+
+
+@app.get("/api/users/{user_id}")
+async def get_user(user_id: str):
+    """Get user by ID"""
+    user = user_manager.get_user(user_id)
+    if user:
+        return {"status": "SUCCESS", "user": user.to_dict()}
+    return {"status": "FAILED", "message": "User not found"}
+
+
+@app.put("/api/users/{user_id}")
+async def update_user(user_id: str, req: UpdateUserRequest):
+    """Update user (admin or self)"""
+    updates = {}
+    if req.email is not None:
+        updates["email"] = req.email
+    if req.full_name is not None:
+        updates["full_name"] = req.full_name
+    if req.role is not None:
+        updates["role"] = req.role
+    if req.password is not None:
+        updates["password"] = req.password
+    if req.is_active is not None:
+        updates["is_active"] = req.is_active
+    
+    user = user_manager.update_user(user_id, **updates)
+    if user:
+        return {"status": "SUCCESS", "user": user.to_dict()}
+    return {"status": "FAILED", "message": "Update failed"}
+
+
+@app.delete("/api/users/{user_id}")
+async def delete_user(user_id: str):
+    """Delete user (admin only)"""
+    if user_manager.delete_user(user_id):
+        return {"status": "SUCCESS"}
+    return {"status": "FAILED", "message": "User not found"}
+
+
+# ====================================================================
+# TEAM COLLABORATION FEATURES
+# ====================================================================
+class CreateWorkspaceRequest(BaseModel):
+    name: str
+    description: str
+
+
+class AddMemberRequest(BaseModel):
+    user_id: str
+    role: WorkspaceRole = WorkspaceRole.MEMBER
+
+
+class CreateTaskRequest(BaseModel):
+    title: str
+    description: str
+    priority: str = "MEDIUM"
+    assigned_to: Optional[str] = None
+
+
+class AddCommentRequest(BaseModel):
+    content: str
+    comment_type: CommentType = CommentType.GENERAL
+    parent_id: Optional[str] = None
+    task_id: Optional[str] = None
+
+
+@app.post("/api/workspaces")
+async def create_workspace(req: CreateWorkspaceRequest, user_id: str = "admin"):
+    """Create new team workspace"""
+    try:
+        workspace = team_collaboration.create_workspace(
+            name=req.name,
+            description=req.description,
+            created_by=user_id
+        )
+        return {"status": "SUCCESS", "workspace": workspace.to_dict()}
+    except Exception as e:
+        return {"status": "FAILED", "message": str(e)}
+
+
+@app.get("/api/workspaces")
+async def list_workspaces(user_id: str = "admin"):
+    """List workspaces accessible to user"""
+    return {"workspaces": team_collaboration.list_workspaces(user_id)}
+
+
+@app.get("/api/workspaces/{workspace_id}")
+async def get_workspace(workspace_id: str):
+    """Get workspace details"""
+    workspace = team_collaboration.get_workspace(workspace_id)
+    if workspace:
+        return {"status": "SUCCESS", "workspace": workspace.to_dict()}
+    return {"status": "FAILED", "message": "Workspace not found"}
+
+
+@app.post("/api/workspaces/{workspace_id}/members")
+async def add_workspace_member(workspace_id: str, req: AddMemberRequest):
+    """Add member to workspace"""
+    if team_collaboration.add_member(workspace_id, req.user_id, req.role):
+        return {"status": "SUCCESS"}
+    return {"status": "FAILED", "message": "Failed to add member"}
+
+
+@app.delete("/api/workspaces/{workspace_id}/members/{user_id}")
+async def remove_workspace_member(workspace_id: str, user_id: str):
+    """Remove member from workspace"""
+    if team_collaboration.remove_member(workspace_id, user_id):
+        return {"status": "SUCCESS"}
+    return {"status": "FAILED", "message": "Failed to remove member"}
+
+
+@app.post("/api/workspaces/{workspace_id}/tasks")
+async def create_workspace_task(workspace_id: str, req: CreateTaskRequest, user_id: str = "admin"):
+    """Create task in workspace"""
+    try:
+        task = team_collaboration.create_task(
+            workspace_id=workspace_id,
+            title=req.title,
+            description=req.description,
+            created_by=user_id,
+            priority=req.priority,
+            assigned_to=req.assigned_to
+        )
+        return {"status": "SUCCESS", "task": task.to_dict()}
+    except Exception as e:
+        return {"status": "FAILED", "message": str(e)}
+
+
+@app.put("/api/workspaces/{workspace_id}/tasks/{task_id}")
+async def update_workspace_task(workspace_id: str, task_id: str, **updates):
+    """Update task in workspace"""
+    task = team_collaboration.update_task(workspace_id, task_id, **updates)
+    if task:
+        return {"status": "SUCCESS", "task": task.to_dict()}
+    return {"status": "FAILED", "message": "Task not found"}
+
+
+@app.post("/api/workspaces/{workspace_id}/comments")
+async def add_workspace_comment(workspace_id: str, req: AddCommentRequest, user_id: str = "admin"):
+    """Add comment to workspace"""
+    try:
+        comment = team_collaboration.add_comment(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            content=req.content,
+            comment_type=req.comment_type,
+            parent_id=req.parent_id,
+            task_id=req.task_id
+        )
+        return {"status": "SUCCESS", "comment": comment.to_dict()}
+    except Exception as e:
+        return {"status": "FAILED", "message": str(e)}
+
+
+@app.get("/api/workspaces/{workspace_id}/comments")
+async def get_workspace_comments(workspace_id: str, task_id: Optional[str] = None):
+    """Get comments from workspace"""
+    comments = team_collaboration.get_comments(workspace_id, task_id)
+    return {"comments": [c.to_dict() for c in comments]}
+
+
+@app.get("/api/workspaces/{workspace_id}/activity")
+async def get_workspace_activity(workspace_id: str, limit: int = 50):
+    """Get activity feed for workspace"""
+    activities = team_collaboration.get_activity_feed(workspace_id, limit)
+    return {"activities": activities}
+
+
+# ====================================================================
+# ENHANCED AGENT AUTONOMY
+# ====================================================================
+class CreateTaskRequest(BaseModel):
+    title: str
+    description: str
+    priority: TaskPriority = TaskPriority.MEDIUM
+    skills_required: List[str] = []
+    dependencies: List[str] = []
+    deadline: Optional[float] = None
+
+
+class AssignTaskRequest(BaseModel):
+    agent_id: str
+
+
+class UpdateTaskProgressRequest(BaseModel):
+    progress: float
+    result: Optional[Dict[str, Any]] = None
+
+
+@app.get("/api/agents")
+async def list_agents():
+    """List all agents with their profiles"""
+    return {"agents": enhanced_autonomy.list_agents()}
+
+
+@app.get("/api/agents/{agent_id}")
+async def get_agent(agent_id: str):
+    """Get agent profile"""
+    agent = enhanced_autonomy.get_agent(agent_id)
+    if agent:
+        return {"status": "SUCCESS", "agent": agent.to_dict()}
+    return {"status": "FAILED", "message": "Agent not found"}
+
+
+@app.get("/api/agents/{agent_id}/performance")
+async def get_agent_performance(agent_id: str):
+    """Get agent performance metrics"""
+    performance = enhanced_autonomy.get_agent_performance(agent_id)
+    if performance:
+        return {"status": "SUCCESS", "performance": performance}
+    return {"status": "FAILED", "message": "Agent not found"}
+
+
+@app.get("/api/agents/{agent_id}/tasks")
+async def get_agent_tasks(agent_id: str):
+    """Get tasks assigned to agent"""
+    tasks = enhanced_autonomy.get_agent_tasks(agent_id)
+    return {"tasks": [task.to_dict() for task in tasks]}
+
+
+@app.post("/api/tasks")
+async def create_task(req: CreateTaskRequest, created_by: str = "system"):
+    """Create new autonomous task"""
+    try:
+        task = enhanced_autonomy.create_task(
+            title=req.title,
+            description=req.description,
+            priority=req.priority,
+            skills_required=req.skills_required,
+            dependencies=req.dependencies,
+            created_by=created_by,
+            deadline=req.deadline
+        )
+        return {"status": "SUCCESS", "task": task.to_dict()}
+    except Exception as e:
+        return {"status": "FAILED", "message": str(e)}
+
+
+@app.get("/api/tasks")
+async def list_tasks():
+    """List all tasks"""
+    return {"tasks": [task.to_dict() for task in enhanced_autonomy.tasks.values()]}
+
+
+@app.get("/api/tasks/queue")
+async def get_task_queue():
+    """Get current task queue"""
+    queue = enhanced_autonomy.get_task_queue()
+    return {"queue": [task.to_dict() for task in queue if task]}
+
+
+@app.get("/api/tasks/{task_id}")
+async def get_task(task_id: str):
+    """Get task by ID"""
+    task = enhanced_autonomy.tasks.get(task_id)
+    if task:
+        return {"status": "SUCCESS", "task": task.to_dict()}
+    return {"status": "FAILED", "message": "Task not found"}
+
+
+@app.post("/api/tasks/{task_id}/assign")
+async def assign_task(task_id: str, req: AssignTaskRequest):
+    """Assign task to specific agent"""
+    if enhanced_autonomy.assign_task(task_id, req.agent_id):
+        return {"status": "SUCCESS"}
+    return {"status": "FAILED", "message": "Assignment failed"}
+
+
+@app.post("/api/tasks/{task_id}/auto-assign")
+async def auto_assign_task(task_id: str):
+    """Automatically assign task to best available agent"""
+    agent_id = enhanced_autonomy.auto_assign_task(task_id)
+    if agent_id:
+        return {"status": "SUCCESS", "assigned_to": agent_id}
+    return {"status": "FAILED", "message": "Auto-assignment failed"}
+
+
+@app.put("/api/tasks/{task_id}/progress")
+async def update_task_progress(task_id: str, req: UpdateTaskProgressRequest):
+    """Update task progress"""
+    enhanced_autonomy.update_task_progress(task_id, req.progress, req.result)
+    return {"status": "SUCCESS"}
+
+
+@app.post("/api/tasks/{task_id}/complete")
+async def complete_task(task_id: str, result: Optional[Dict[str, Any]] = None):
+    """Mark task as completed"""
+    if enhanced_autonomy.complete_task(task_id, result):
+        return {"status": "SUCCESS"}
+    return {"status": "FAILED", "message": "Task completion failed"}
+
+
+@app.post("/api/tasks/{task_id}/fail")
+async def fail_task(task_id: str, error_message: str):
+    """Mark task as failed"""
+    if enhanced_autonomy.fail_task(task_id, error_message):
+        return {"status": "SUCCESS"}
+    return {"status": "FAILED", "message": "Task failure update failed"}
 
 
 @app.post("/api/probe/validate")
