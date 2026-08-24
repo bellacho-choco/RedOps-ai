@@ -44,6 +44,14 @@ from backend.plugin_market import plugin_market, PluginBundle
 from backend.gsi_engine import gsi_engine
 from backend.deployment_wizard import deployment_wizard
 from backend.evolution_engine import evolution_engine
+from backend.session_engine import session_engine, IdentityContext
+from backend.request_forge import request_forge
+from backend.api_mapper import api_mapper, Endpoint
+from backend.response_analyzer import response_analyzer, Signal
+from backend.fuzz_engine import fuzz_engine
+from backend.exploit_validator import exploit_validator
+from backend.hunt_engine import hunt_engine
+from backend.payload_corpus import payload_corpus
 
 
 def _register_gateway_tools():
@@ -90,12 +98,43 @@ def _register_gateway_tools():
             "evidence_token": token.token_id if token else None,
         }
 
+    async def _http_request(target: str, **params):
+        rec = await request_forge.send(
+            target, method=params.get("method", "GET"),
+            identity=params.get("identity", "unauth"),
+            params=params.get("params"), json_body=params.get("json"),
+            headers=params.get("headers"))
+        return {"status": rec.status, "elapsed_ms": rec.elapsed_ms,
+                "length": rec.length, "digest": rec.digest,
+                "identity": rec.identity, "url": rec.url}
+
+    async def _api_map(target: str, **params):
+        base = target if target.startswith("http") else f"https://{target}"
+        eps = await api_mapper.map_target(
+            base, identity=params.get("identity", "unauth"),
+            max_endpoints=params.get("max_endpoints", 100))
+        return {"base": base, "endpoints": len(eps),
+                "map": [e.__dict__ for e in eps]}
+
+    async def _fuzz_endpoint(target: str, **params):
+        ep = Endpoint(url=target, method=params.get("method", "GET"),
+                      params=params.get("params", []))
+        res = await fuzz_engine.fuzz_endpoint(
+            ep, identity=params.get("identity", "unauth"),
+            max_requests=params.get("max_requests", 12))
+        return {"url": res.url, "requests_sent": res.requests_sent,
+                "signals": [s.__dict__ for s in res.signals],
+                "elapsed_ms": res.elapsed_ms}
+
     tool_gateway.register_tool("port_scan", _port_scan)
     tool_gateway.register_tool("http_probe", _http_probe)
     tool_gateway.register_tool("dns_enum", _dns_enum)
     tool_gateway.register_tool("sast_scan", _sast_scan)
     tool_gateway.register_tool("graph_query", _graph_query)
     tool_gateway.register_tool("sandbox_exec", _sandbox_exec)
+    tool_gateway.register_tool("http_request", _http_request)
+    tool_gateway.register_tool("api_map", _api_map)
+    tool_gateway.register_tool("fuzz_endpoint", _fuzz_endpoint)
 
 
 _register_gateway_tools()
@@ -404,6 +443,146 @@ async def get_attack_paths():
 @app.post("/api/simulate/counterfactual")
 async def run_counterfactual(req: SimulateRequest):
     return counterfactual_simulator.simulate_compromise(req.seed_node).model_dump()
+
+
+# ====================================================================
+# OMEGA: WEB EXPLOITATION STACK (session / forge / map / fuzz / validate)
+# ====================================================================
+class IdentityRegisterRequest(BaseModel):
+    name: str
+    headers: Dict[str, str] = {}
+    bearer: Optional[str] = None
+    api_key: Optional[str] = None
+    cookies: Dict[str, str] = {}
+
+
+class ProbeRequest(BaseModel):
+    url: str
+    method: str = "GET"
+    identity: str = "unauth"
+    params: Optional[Dict[str, Any]] = None
+    json_body: Optional[Any] = None
+    headers: Optional[Dict[str, str]] = None
+
+
+class MapRequest(BaseModel):
+    base_url: str
+    identity: str = "unauth"
+    max_endpoints: int = 100
+
+
+class FuzzRequest(BaseModel):
+    url: str
+    method: str = "GET"
+    params: List[str] = []
+    identity: str = "unauth"
+    max_requests: int = 12
+
+
+class ValidateRequest(BaseModel):
+    signal_kind: str
+    url: str
+    detail: str = ""
+    confidence: float = 0.5
+    severity: str = "MEDIUM"
+    context: Dict[str, Any] = {}
+    method: str = "GET"
+    identity: str = "unauth"
+    params: Optional[Dict[str, Any]] = None
+
+
+@app.get("/api/session/identities")
+async def list_identities():
+    return {"identities": session_engine.list_identities()}
+
+
+@app.post("/api/session/identities")
+async def register_identity(req: IdentityRegisterRequest):
+    ctx = session_engine.create(req.name, headers=req.headers, bearer=req.bearer,
+                                api_key=req.api_key, cookies=req.cookies)
+    return {"registered": ctx.name}
+
+
+@app.post("/api/probe/request")
+async def probe_request(req: ProbeRequest):
+    rec = await request_forge.send(req.url, method=req.method, identity=req.identity,
+                                   params=req.params, json_body=req.json_body,
+                                   headers=req.headers)
+    signals = response_analyzer.analyze(rec)
+    return {"status": rec.status, "elapsed_ms": rec.elapsed_ms, "length": rec.length,
+            "digest": rec.digest, "identity": rec.identity,
+            "signals": [s.__dict__ for s in signals]}
+
+
+@app.post("/api/probe/map")
+async def probe_map(req: MapRequest):
+    eps = await api_mapper.map_target(req.base_url, identity=req.identity,
+                                      max_endpoints=req.max_endpoints)
+    return {"base": req.base_url, "endpoints": len(eps),
+            "map": [e.__dict__ for e in eps]}
+
+
+@app.post("/api/probe/fuzz")
+async def probe_fuzz(req: FuzzRequest):
+    ep = Endpoint(url=req.url, method=req.method, params=req.params)
+    res = await fuzz_engine.fuzz_endpoint(ep, identity=req.identity,
+                                          max_requests=req.max_requests)
+    return {"url": res.url, "requests_sent": res.requests_sent,
+            "signals": [s.__dict__ for s in res.signals],
+            "elapsed_ms": res.elapsed_ms}
+
+
+@app.post("/api/probe/idor")
+async def probe_idor(url: str, identity_a: str = "user_a", identity_b: str = "user_b"):
+    signals = await fuzz_engine.idor_check(url, identity_a, identity_b)
+    return {"url": url, "signals": [s.__dict__ for s in signals]}
+
+
+@app.post("/api/probe/validate")
+async def probe_validate(req: ValidateRequest):
+    signal = Signal(kind=req.signal_kind, url=req.url, detail=req.detail,
+                    confidence=req.confidence, severity=req.severity,
+                    context=req.context)
+    result = await exploit_validator.validate(signal, method=req.method,
+                                              identity=req.identity, params=req.params)
+    return result.__dict__
+
+
+@app.get("/api/probe/summary")
+async def probe_summary():
+    return {"requests": len(request_forge.request_log),
+            "recent_requests": request_forge.request_log[-20:],
+            "validation": exploit_validator.summary(),
+            "endpoints_mapped": {k: len(v) for k, v in api_mapper.maps.items()}}
+
+
+class HuntRequest(BaseModel):
+    base_url: str
+    identity: str = "unauth"
+    max_endpoints: int = 25
+    max_requests_per_endpoint: int = 8
+    total_request_ceiling: int = 150
+
+
+@app.post("/api/hunt/run")
+async def hunt_run(req: HuntRequest):
+    report = await hunt_engine.hunt(
+        req.base_url, identity=req.identity,
+        max_endpoints=req.max_endpoints,
+        max_requests_per_endpoint=req.max_requests_per_endpoint,
+        total_request_ceiling=req.total_request_ceiling)
+    return report.__dict__
+
+
+@app.get("/api/hunt/latest")
+async def hunt_latest():
+    report = hunt_engine.latest()
+    return report.__dict__ if report else {"status": "no hunts yet"}
+
+
+@app.get("/api/corpus/coverage")
+async def corpus_coverage():
+    return payload_corpus.coverage_report()
 
 
 # ====================================================================
